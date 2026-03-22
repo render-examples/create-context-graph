@@ -6,7 +6,7 @@ Interactive CLI scaffolding tool that generates domain-specific context graph ap
 
 Given a domain (e.g., "healthcare", "wildlife-management") and an agent framework (e.g., PydanticAI, Claude Agent SDK), it generates a complete full-stack application: FastAPI backend, Next.js + Chakra UI v3 + NVL frontend, Neo4j schema, synthetic data, and a configured AI agent with domain-specific tools.
 
-**Status:** Phase 5 complete (v0.2.0). 22 domains, 8 agent frameworks, NVL graph visualization, LLM-generated demo data (80-90 entities, 25+ documents, 3-5 decision traces per domain), document browser, entity detail panel, 7 SaaS connectors, custom domain generation, Docusaurus documentation site, 262 passing tests.
+**Status:** Phase 5 complete (v0.2.0). 22 domains, 8 agent frameworks, interactive NVL graph visualization (schema view, double-click expand, drag/zoom, property panel, agent-driven graph updates), LLM-generated demo data (80-90 entities, 25+ documents, 3-5 decision traces per domain), document browser, entity detail panel, 7 SaaS connectors, custom domain generation, Docusaurus documentation site, 262 passing tests.
 
 ## Quick Reference
 
@@ -85,6 +85,12 @@ Templates that contain JSX curly braces or Python dict literals must use `{% raw
 
 ### Custom domain generation
 `custom_domain.py` generates complete domain ontology YAMLs from natural language descriptions using LLM (Anthropic/OpenAI). Uses `_base.yaml` + 2 reference domain YAMLs as few-shot examples. Validates output against `DomainOntology` Pydantic model with retry loop (up to 3 attempts). Generated domains can be saved to `~/.create-context-graph/custom-domains/` for reuse.
+
+### Interactive graph visualization with agent integration
+The frontend `ContextGraphView` starts in **schema view** (calls `db.schema.visualization()` via `GET /schema/visualization`) showing entity types as nodes and relationship types as edges. When the user interacts with the agent chat, tool call results flow to the graph automatically via a `CypherResultCollector` in `context_graph_client.py` — the `/chat` endpoint drains collected Cypher results and attaches them as `graph_data` in the response, without modifying any agent template. The `ChatInterface` passes `graph_data` to the parent `page.tsx` via an `onGraphUpdate` callback, which flows down to `ContextGraphView` as `externalGraphData`. Double-clicking a schema node loads instances of that label; double-clicking a data node calls `POST /expand` to fetch neighbors (deduplicated merge). NVL uses d3Force layout with drag/zoom/pan, click for property details, and canvas click to deselect.
+
+### Neo4j driver serialization
+`context_graph_client.py.j2` uses a custom `_serialize()` function instead of the driver's `.data()` method. This preserves Neo4j Node metadata (`elementId`, `labels`), Relationship metadata (`elementId`, `type`, `startNodeElementId`, `endNodeElementId`), and Path expansion. Without this, the frontend graph visualization and agent tools receive flat property dicts with no type information.
 
 ### SaaS connectors
 `connectors/` package with 7 service connectors (GitHub, Notion, Jira, Slack, Gmail, Google Calendar, Salesforce). Each connector implements `BaseConnector` ABC with `authenticate()`, `fetch()`, and `get_credential_prompts()` methods. Returns `NormalizedData` matching the fixture schema so `ingest.py` works unchanged. Gmail/Google Calendar prefer the Google Workspace CLI (`gws`) if available, with Python OAuth2 fallback. Connectors run at scaffold time AND are generated into the project with `make import` / `make import-and-seed` targets.
@@ -177,7 +183,7 @@ Tests do NOT require Neo4j or any API keys. All tests use `tmp_path` fixtures fo
 | CrewAI | `crewai/` | `Agent` + `Task` + `Crew` with `@tool` |
 | Strands | `strands/` | `Agent` with `@tool`, Bedrock model |
 | Google ADK | `google_adk/` | `Agent` + `FunctionTool`, Gemini model |
-| MAF | `maf/` | Modular tool registry with decorator pattern |
+| MAF | `maf/` | Modular `@register_tool` registry + Anthropic API agentic loop |
 
 ## Adding a New SaaS Connector
 

@@ -76,10 +76,12 @@ Pydantic `Settings` class that reads from the `.env` file. Exposes Neo4j connect
 
 API endpoints:
 
-- `POST /chat` — Send a message to the AI agent
+- `POST /chat` — Send a message to the AI agent (returns `graph_data` from tool call results)
 - `POST /search` — Search entities in the knowledge graph
 - `GET /graph/{entity_name}` — Get the subgraph around an entity
-- `GET /schema` — Get the graph database schema
+- `GET /schema` — Get the graph database schema (labels and relationship types)
+- `GET /schema/visualization` — Get the schema as a graph for visualization (via `db.schema.visualization()`)
+- `POST /expand` — Expand a node to show its immediate neighbors (nodes + relationships)
 - `POST /cypher` — Execute a Cypher query
 - `GET /documents` — List documents with optional template filter
 - `GET /documents/{title}` — Get full document content with mentioned entities
@@ -113,7 +115,7 @@ The agent is configured with:
 
 ### `app/context_graph_client.py`
 
-Neo4j client for reading and writing to the knowledge graph. Provides methods for entity CRUD, relationship traversal, and arbitrary Cypher execution.
+Neo4j client for reading and writing to the knowledge graph. Provides methods for entity CRUD, relationship traversal, arbitrary Cypher execution, schema visualization (`db.schema.visualization()`), and node expansion. Uses a custom `_serialize()` function to preserve Neo4j Node/Relationship metadata (labels, elementIds, types) instead of the driver's `.data()` method. Includes a `CypherResultCollector` that captures Cypher results from agent tool calls for automatic graph data flow to the frontend.
 
 ### `app/gds_client.py`
 
@@ -142,15 +144,21 @@ make seed
 
 ### `app/page.tsx`
 
-Main application page with a three-panel layout: chat interface on the left, graph visualization in the center, and a tabbed panel on the right with Decision Traces and Documents tabs.
+Main application page with a three-panel layout: chat interface on the left, graph visualization in the center, and a tabbed panel on the right with Decision Traces and Documents tabs. Manages shared state — `graphData` is lifted to the page level and flows from `ChatInterface` (via `onGraphUpdate` callback) to `ContextGraphView` (via `externalGraphData` prop).
 
 ### `components/ChatInterface.tsx`
 
-Chat UI component with message history, input field, and streaming response display. Includes clickable demo scenario buttons generated from the ontology's `demo_scenarios`.
+Chat UI component with message history, input field, and response display. Includes clickable demo scenario buttons generated from the ontology's `demo_scenarios`. When the agent's response includes `graph_data` (captured from tool call Cypher results), passes it to the parent page via the `onGraphUpdate` callback to update the graph visualization.
 
 ### `components/ContextGraphView.tsx`
 
-NVL (Neo4j Visualization Library) graph component. Renders nodes and relationships with domain-colored nodes. Click any node to open an entity detail panel showing all properties, labels, and connections with relationship types and directions.
+Interactive NVL (Neo4j Visualization Library) graph component with multiple view modes:
+
+- **Schema view** (initial) — Loads `db.schema.visualization()` showing entity type labels as nodes and relationship types as edges. Double-click a schema node to load instances of that label.
+- **Data view** — Displays actual graph data from agent tool calls or manual exploration. Double-click a data node to expand its neighbors (deduplicated merge via `POST /expand`).
+- **Interactions** — Drag to move nodes, scroll to zoom, click node/relationship for property details panel (labels, all properties, connections), click canvas to deselect. Back-to-schema button to return to schema view.
+- **Agent integration** — Automatically updates when agent tool calls produce graph data (received via `externalGraphData` prop from the parent page).
+- **UI overlays** — Color legend (top 6 node types), usage instructions, loading spinner during expansion.
 
 ### `components/DecisionTracePanel.tsx`
 

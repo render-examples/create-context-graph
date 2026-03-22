@@ -23,7 +23,7 @@ uvx create-context-graph my-app --domain healthcare --framework pydanticai --dem
 Create Context Graph walks you through an interactive wizard and generates a complete project:
 
 - **FastAPI backend** with an AI agent configured for your domain
-- **Next.js + Chakra UI v3 frontend** with chat, graph visualization, entity detail panel, document browser, and decision trace viewer
+- **Next.js + Chakra UI v3 frontend** with chat, interactive graph visualization (schema view, double-click expand, drag/zoom, property panel), entity detail panel, document browser, and decision trace viewer
 - **Neo4j schema** with domain-specific constraints, indexes, and GDS projections
 - **Rich demo data** — LLM-generated entities, relationships, professional documents (discharge summaries, trade confirmations, lab reports), and multi-step decision traces
 - **SaaS data import** — connect GitHub, Slack, Gmail, Jira, Notion, Google Calendar, or Salesforce
@@ -166,7 +166,7 @@ Select your preferred agent framework at project creation time:
 | **CrewAI** | Multi-agent crew with role-based tools |
 | **Strands (AWS)** | Tool-use agents with AWS Bedrock |
 | **Google ADK** | Gemini agents with `FunctionTool` calling |
-| **MAF** | Microsoft Agent Framework with pluggable tool registry |
+| **MAF** | Microsoft Agent Framework with modular tool registry and Anthropic API agentic loop |
 
 All frameworks share the same FastAPI HTTP layer, Neo4j client, and frontend. Only the agent implementation differs.
 
@@ -192,8 +192,8 @@ my-app/
 ├── frontend/
 │   ├── app/                       # Next.js pages
 │   ├── components/
-│   │   ├── ChatInterface.tsx      # AI chat with demo scenarios
-│   │   ├── ContextGraphView.tsx   # Graph visualization (NVL) with entity detail panel
+│   │   ├── ChatInterface.tsx      # AI chat with demo scenarios + graph data flow
+│   │   ├── ContextGraphView.tsx   # Interactive NVL graph (schema view, expand, drag/zoom, properties)
 │   │   ├── DecisionTracePanel.tsx  # Reasoning trace viewer with step details
 │   │   ├── DocumentBrowser.tsx    # Document browser with template filtering
 │   │   └── Provider.tsx           # Chakra UI v3 provider

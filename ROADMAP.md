@@ -255,6 +255,47 @@ Prepared for public release with Docusaurus documentation, Neo4j Labs compliance
 
 ---
 
+## Graph Visualization & Agent Fixes — COMPLETE
+
+**Status:** Done
+
+### Interactive graph visualization
+
+- **Schema view on load** — Graph starts by calling `db.schema.visualization()` (via new `GET /schema/visualization` endpoint), showing entity type labels as nodes and relationship types as edges. No data query on initial load.
+- **Agent-driven graph updates** — `CypherResultCollector` in `context_graph_client.py` captures all Cypher results from agent tool calls. The `/chat` endpoint drains collected results and attaches them as `graph_data` in the response. `ChatInterface` passes `graph_data` to `page.tsx` via `onGraphUpdate` callback, which flows to `ContextGraphView` as `externalGraphData`. Works for all 8 agent frameworks without modifying any agent template.
+- **Double-click to expand** — Schema nodes load instances of that label (`MATCH (n:\`Label\`)-[r]-(m) RETURN n,r,m LIMIT 50`). Data nodes call new `POST /expand` endpoint to fetch neighbors. Expanded data is merged with deduplication.
+- **NVL d3Force layout** — Replaced `InteractiveNvlWrapper` configuration: d3Force layout, zoom 0.1–5x, relationship thickness 2, dynamic import for SSR avoidance. Uses `mouseEventCallbacks` for node click, double-click, relationship click, canvas click.
+- **Property details panel** — Click any node to see labels (color badges), all properties (key-value list), and metadata. Click relationships to see type and properties. Canvas click deselects.
+- **UI overlays** — Color legend (top 6 node types), instructions overlay, loading spinner during expansion, back-to-schema button, schema/data mode indicator.
+- **State management** — `page.tsx` lifts `graphData` state with `useState`/`useCallback`. Props flow down, callbacks flow up. No external state library.
+
+### Neo4j driver serialization fix
+
+- **`_serialize()` function** in `context_graph_client.py.j2` — Replaced `result.data()` (which strips metadata) with per-record iteration and custom serialization preserving Node (`elementId`, `labels`), Relationship (`elementId`, `type`, `startNodeElementId`, `endNodeElementId`), and Path objects.
+
+### MAF agent template fix
+
+- **Bug:** MAF agent used keyword-based tool dispatch (lines 75-114) that never called an LLM. Fallback echoed system prompt: `"I'm your {SYSTEM_PROMPT}... Available tools: ..."`.
+- **Fix:** Rewrote `handle_message()` with Anthropic API tool-use loop (matching `claude_agent_sdk` pattern). Kept `TOOL_REGISTRY` + `@register_tool` decorator. Added `_build_tool_definitions()` that introspects registry via `inspect.signature` to generate Anthropic tool schemas. Added `anthropic>=0.30` to MAF framework dependencies.
+
+### New backend endpoints
+
+- `GET /schema/visualization` — Returns schema graph via `db.schema.visualization()` (with fallback to basic labels/types)
+- `POST /expand` (body: `{element_id}`) — Returns immediate neighbors with nodes and relationships for graph expansion
+
+### Files modified
+
+- `config.py` — Added `anthropic>=0.30` to MAF deps
+- `templates/backend/agents/maf/agent.py.j2` — Full rewrite
+- `templates/backend/shared/context_graph_client.py.j2` — `_serialize()`, `CypherResultCollector`, `get_schema_visualization()`, `expand_node()`
+- `templates/backend/shared/routes.py.j2` — New endpoints, collector integration in `/chat`
+- `templates/frontend/components/ContextGraphView.tsx.j2` — Complete rewrite (~480 lines)
+- `templates/frontend/components/ChatInterface.tsx.j2` — `onGraphUpdate` prop
+- `templates/frontend/app/page.tsx.j2` — State lifting
+- `templates/frontend/lib/config.ts.j2` — `GraphData` type, schema constants
+
+---
+
 ## Summary
 
 | Phase | Description | Status | Tests |
@@ -265,3 +306,4 @@ Prepared for public release with Docusaurus documentation, Neo4j Labs compliance
 | 4 | SaaS Import & Custom Domains | **Complete** | (included above) |
 | 5 | Polish, Testing & Launch | **Complete** | (included above) |
 | — | Data Quality & UI Enhancements | **Complete** | (included above) |
+| — | Graph Visualization & Agent Fixes | **Complete** | (included above) |
