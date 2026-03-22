@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "create-context-graph"
-version = "0.1.0"
+version = "0.1.1"
 description = "Interactive CLI scaffolding tool for domain-specific context graph applications"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.11"
 authors = [
-    { name = "Will Lyon" },
+    { name = "William Lyon" },
 ]
 keywords = ["neo4j", "context-graph", "ai-agent", "scaffolding", "cli"]
 classifiers = [
