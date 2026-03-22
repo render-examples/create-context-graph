@@ -1,8 +1,12 @@
 {% raw %}"use client";
 
 import { Box, Flex, Heading, Text } from "@chakra-ui/react";
+import dynamic from "next/dynamic";
 import { ChatInterface } from "@/components/ChatInterface";
-import { ContextGraphView } from "@/components/ContextGraphView";
+const ContextGraphView = dynamic(
+  () => import("@/components/ContextGraphView").then((mod) => mod.ContextGraphView),
+  { ssr: false }
+);
 import { DecisionTracePanel } from "@/components/DecisionTracePanel";
 import { DOMAIN } from "@/lib/config";
 
