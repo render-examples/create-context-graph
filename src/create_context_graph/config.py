@@ -48,7 +48,7 @@ class ProjectConfig(BaseModel):
     project_name: str = Field(description="Human-readable project name")
     domain: str = Field(description="Domain ID from ontology YAML")
     framework: str = Field(description="Agent framework key")
-    data_source: Literal["demo", "saas"] = Field(default="demo")
+    data_source: Literal["demo", "saas", "none"] = Field(default="demo")
     neo4j_uri: str = Field(default="neo4j://localhost:7687")
     neo4j_username: str = Field(default="neo4j")
     neo4j_password: str = Field(default="password")
@@ -56,6 +56,9 @@ class ProjectConfig(BaseModel):
     anthropic_api_key: str | None = Field(default=None)
     openai_api_key: str | None = Field(default=None)
     generate_data: bool = Field(default=False)
+    custom_domain_yaml: str | None = Field(default=None, exclude=True)
+    saas_connectors: list[str] = Field(default_factory=list)
+    saas_credentials: dict[str, dict[str, str]] = Field(default_factory=dict, exclude=True)
 
     @computed_field
     @property

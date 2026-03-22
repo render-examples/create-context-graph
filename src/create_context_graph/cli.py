@@ -33,6 +33,8 @@ console = Console()
 @click.option("--neo4j-username", envvar="NEO4J_USERNAME", default="neo4j")
 @click.option("--neo4j-password", envvar="NEO4J_PASSWORD", default="password")
 @click.option("--anthropic-api-key", envvar="ANTHROPIC_API_KEY", help="Anthropic API key for LLM generation")
+@click.option("--custom-domain", type=str, help="Natural language description for custom domain generation (requires --anthropic-api-key)")
+@click.option("--connector", multiple=True, help="SaaS connector to enable (github, slack, jira, notion, gmail, gcal, salesforce)")
 @click.option("--output-dir", type=click.Path(), help="Output directory (default: ./<project-name>)")
 @click.option("--list-domains", is_flag=True, help="List available domains and exit")
 @click.version_option(package_name="create-context-graph")
@@ -46,6 +48,8 @@ def main(
     neo4j_username: str,
     neo4j_password: str,
     anthropic_api_key: str | None,
+    custom_domain: str | None,
+    connector: tuple[str, ...],
     output_dir: str | None,
     list_domains: bool,
 ) -> None:
@@ -64,19 +68,45 @@ def main(
         console.print()
         return
 
+    # Handle custom domain generation (non-interactive)
+    custom_domain_yaml = None
+    custom_ontology = None
+    if custom_domain:
+        if not anthropic_api_key:
+            console.print("[red]Error:[/red] --anthropic-api-key is required for custom domain generation.")
+            raise SystemExit(1)
+        from create_context_graph.custom_domain import (
+            display_ontology_summary,
+            generate_custom_domain,
+        )
+
+        console.print("[bold]Generating custom domain ontology...[/bold]")
+        try:
+            custom_ontology, custom_domain_yaml = generate_custom_domain(
+                custom_domain, anthropic_api_key
+            )
+        except ValueError as e:
+            console.print(f"[red]Error:[/red] {e}")
+            raise SystemExit(1)
+
+        display_ontology_summary(custom_ontology, console)
+        domain = custom_ontology.domain.id
+
     # If all required args are provided, skip wizard
-    if project_name and domain and framework:
+    if project_name and (domain or custom_domain) and framework:
         config = ProjectConfig(
             project_name=project_name,
-            domain=domain,
+            domain=domain or "custom",
             framework=framework,
-            data_source="demo" if demo_data else "demo",
+            data_source="saas" if connector else ("demo" if demo_data else "none"),
             neo4j_uri=neo4j_uri or "neo4j://localhost:7687",
             neo4j_username=neo4j_username,
             neo4j_password=neo4j_password,
             neo4j_type="docker",
             anthropic_api_key=anthropic_api_key,
             generate_data=demo_data,
+            custom_domain_yaml=custom_domain_yaml,
+            saas_connectors=list(connector),
         )
     else:
         # Launch interactive wizard
@@ -91,13 +121,19 @@ def main(
         raise SystemExit(1)
 
     # Load domain ontology
-    try:
-        ontology = load_domain(config.domain)
-    except FileNotFoundError:
-        console.print(f"[red]Error:[/red] Domain '{config.domain}' not found.")
-        available = list_available_domains()
-        console.print("Available domains: " + ", ".join(d["id"] for d in available))
-        raise SystemExit(1)
+    if custom_ontology:
+        ontology = custom_ontology
+    elif config.custom_domain_yaml:
+        from create_context_graph.ontology import load_domain_from_yaml_string
+        ontology = load_domain_from_yaml_string(config.custom_domain_yaml)
+    else:
+        try:
+            ontology = load_domain(config.domain)
+        except FileNotFoundError:
+            console.print(f"[red]Error:[/red] Domain '{config.domain}' not found.")
+            available = list_available_domains()
+            console.print("Available domains: " + ", ".join(d["id"] for d in available))
+            raise SystemExit(1)
 
     # Generate project
     with Progress(
@@ -123,6 +159,34 @@ def main(
             fixture_path,
             api_key=config.anthropic_api_key or anthropic_api_key,
         )
+
+    # Import data from SaaS connectors if configured
+    if config.saas_connectors:
+        import json
+
+        from create_context_graph.connectors import get_connector, merge_connector_results, NormalizedData
+
+        console.print("\n[bold]Importing data from connected services...[/bold]")
+        results: list[NormalizedData] = []
+        for conn_id in config.saas_connectors:
+            try:
+                conn = get_connector(conn_id)
+                creds = config.saas_credentials.get(conn_id, {})
+                console.print(f"  Connecting to {conn.service_name}...")
+                conn.authenticate(creds)
+                console.print(f"  Fetching data from {conn.service_name}...")
+                data = conn.fetch()
+                results.append(data)
+                entity_count = sum(len(v) for v in data.entities.values())
+                console.print(f"  [green]✓[/green] {conn.service_name}: {entity_count} entities, {len(data.documents)} documents")
+            except Exception as e:
+                console.print(f"  [yellow]⚠[/yellow] {conn_id}: {e}")
+
+        if results:
+            merged = merge_connector_results(results)
+            fixture_path.parent.mkdir(parents=True, exist_ok=True)
+            fixture_path.write_text(json.dumps(merged.model_dump(), indent=2, default=str))
+            console.print(f"\n[green]Imported data written to {fixture_path}[/green]")
 
     # Ingest into Neo4j if requested
     if ingest and fixture_path.exists():
@@ -150,6 +214,8 @@ def main(
     if config.neo4j_type == "docker":
         console.print(f"  [bold]make docker-up[/bold]    # Start Neo4j")
     console.print(f"  [bold]make seed[/bold]          # Seed sample data")
+    if config.saas_connectors:
+        console.print(f"  [bold]make import[/bold]         # Re-import from connected services")
     console.print(f"  [bold]make start[/bold]         # Start backend + frontend")
     console.print()
     console.print(f"  Backend:  http://localhost:8000")

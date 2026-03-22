@@ -6,7 +6,7 @@ Interactive CLI scaffolding tool that generates domain-specific context graph ap
 
 Given a domain (e.g., "healthcare", "wildlife-management") and an agent framework (e.g., PydanticAI, Claude Agent SDK), it generates a complete full-stack application: FastAPI backend, Next.js + Chakra UI v3 + NVL frontend, Neo4j schema, synthetic data, and a configured AI agent with domain-specific tools.
 
-**Status:** Phase 3 complete. 22 domains, 8 agent frameworks, NVL graph visualization, data generation pipeline, 103 passing tests.
+**Status:** Phase 4 complete. 22 domains, 8 agent frameworks, NVL graph visualization, data generation pipeline, 7 SaaS connectors, custom domain generation, 182 passing tests.
 
 ## Quick Reference
 
@@ -32,17 +32,29 @@ src/create_context_graph/
 ├── wizard.py           # 7-step Questionary interactive wizard
 ├── config.py           # ProjectConfig Pydantic model
 ├── ontology.py         # YAML domain ontology loader, validation, code generation
+├── custom_domain.py    # LLM-powered custom domain YAML generation
 ├── renderer.py         # Jinja2 template engine (renders project scaffold)
 ├── generator.py        # LLM-powered synthetic data pipeline (4 stages)
 ├── ingest.py           # Neo4j ingestion via neo4j-agent-memory or direct driver
 ├── neo4j_validator.py  # Neo4j connection testing
+├── connectors/         # SaaS data connectors (7 services)
+│   ├── __init__.py     # BaseConnector ABC, NormalizedData model, registry
+│   ├── github_connector.py
+│   ├── notion_connector.py
+│   ├── jira_connector.py
+│   ├── slack_connector.py
+│   ├── gmail_connector.py   # Prefers gws CLI, falls back to Python OAuth2
+│   ├── gcal_connector.py    # Prefers gws CLI, falls back to Python OAuth2
+│   ├── salesforce_connector.py
+│   └── oauth.py        # Shared OAuth2 flow + gws CLI helpers
 ├── domains/            # 22 YAML ontology definitions + _base.yaml
 ├── fixtures/           # 22 pre-generated JSON fixture files
 └── templates/          # Jinja2 templates for generated projects
     ├── base/           # .env, Makefile, docker-compose, README, .gitignore
     ├── backend/
     │   ├── shared/     # FastAPI main, config, neo4j client, GDS, vector, models, routes
-    │   └── agents/     # Per-framework agent.py (8 frameworks)
+    │   ├── agents/     # Per-framework agent.py (8 frameworks)
+    │   └── connectors/ # Generated connector modules + import_data.py
     ├── frontend/       # Next.js + Chakra UI v3 + NVL components
     └── cypher/         # Schema constraints + GDS projections
 ```
@@ -67,6 +79,12 @@ Templates that contain JSX curly braces or Python dict literals must use `{% raw
 
 ### Dual ingestion backends
 `ingest.py` tries `neo4j-agent-memory` MemoryClient first (demonstrating all three memory types), falls back to direct `neo4j` driver if the package isn't installed.
+
+### Custom domain generation
+`custom_domain.py` generates complete domain ontology YAMLs from natural language descriptions using LLM (Anthropic/OpenAI). Uses `_base.yaml` + 2 reference domain YAMLs as few-shot examples. Validates output against `DomainOntology` Pydantic model with retry loop (up to 3 attempts). Generated domains can be saved to `~/.create-context-graph/custom-domains/` for reuse.
+
+### SaaS connectors
+`connectors/` package with 7 service connectors (GitHub, Notion, Jira, Slack, Gmail, Google Calendar, Salesforce). Each connector implements `BaseConnector` ABC with `authenticate()`, `fetch()`, and `get_credential_prompts()` methods. Returns `NormalizedData` matching the fixture schema so `ingest.py` works unchanged. Gmail/Google Calendar prefer the Google Workspace CLI (`gws`) if available, with Python OAuth2 fallback. Connectors run at scaffold time AND are generated into the project with `make import` / `make import-and-seed` targets.
 
 ## Domain Ontology YAML Schema
 
@@ -94,8 +112,13 @@ my-app/
 │   ├── main.py, config.py, routes.py, models.py
 │   ├── agent.py          # Framework-specific (8 frameworks available)
 │   ├── context_graph_client.py, gds_client.py, vector_client.py
+│   ├── connectors/       # Only if SaaS connectors selected
+│   │   ├── __init__.py
+│   │   └── {service}_connector.py  # One per selected service
 │   └── __init__.py
-├── backend/scripts/generate_data.py
+├── backend/scripts/
+│   ├── generate_data.py
+│   └── import_data.py    # Only if SaaS connectors selected
 ├── backend/pyproject.toml
 ├── frontend/             # Next.js + Chakra UI v3 + NVL
 │   ├── app/ (layout.tsx, page.tsx, globals.css)
@@ -110,12 +133,14 @@ my-app/
 ## Testing
 
 ```bash
-pytest tests/ -v              # All 103 tests
-pytest tests/test_config.py   # Config model tests (10)
-pytest tests/test_ontology.py # Ontology loading + all 22 domains validate (20)
-pytest tests/test_renderer.py # Template rendering + all 8 frameworks compile check (34)
-pytest tests/test_generator.py # Data generation pipeline (14)
-pytest tests/test_cli.py      # CLI integration + 8 domain/framework combos (15)
+pytest tests/ -v                 # All 182 tests (358 with slow matrix)
+pytest tests/test_config.py      # Config model tests (10)
+pytest tests/test_ontology.py    # Ontology loading + all 22 domains validate (20)
+pytest tests/test_renderer.py    # Template rendering + all 8 frameworks compile check (34)
+pytest tests/test_generator.py   # Data generation pipeline (14)
+pytest tests/test_cli.py         # CLI integration + 8 domain/framework combos (15)
+pytest tests/test_custom_domain.py # Custom domain generation with mocked LLM (17)
+pytest tests/test_connectors.py  # SaaS connectors with mocked APIs (23)
 ```
 
 Tests do NOT require Neo4j or any API keys. All tests use `tmp_path` fixtures for output.
@@ -149,16 +174,37 @@ Tests do NOT require Neo4j or any API keys. All tests use `tmp_path` fixtures fo
 | Google ADK | `google_adk/` | `Agent` + `FunctionTool`, Gemini model |
 | MAF | `maf/` | Modular tool registry with decorator pattern |
 
+## Adding a New SaaS Connector
+
+1. Create `src/create_context_graph/connectors/{service}_connector.py` implementing `BaseConnector`
+2. Use `@register_connector("service-id")` decorator to register it
+3. Implement `authenticate(credentials)`, `fetch(**kwargs) -> NormalizedData`, and `get_credential_prompts()`
+4. Add the import to `connectors/__init__.py`
+5. Create `src/create_context_graph/templates/backend/connectors/{service}_connector.py.j2` (standalone version for generated projects)
+6. Update `import_data.py.j2` to handle the new connector
+7. Add tests to `test_connectors.py`
+
+### Current connectors
+| Service | Connector ID | Auth | Dependencies |
+|---------|-------------|------|-------------|
+| GitHub | `github` | Personal access token | PyGithub |
+| Notion | `notion` | Integration token | notion-client |
+| Jira | `jira` | API token | atlassian-python-api |
+| Slack | `slack` | Bot OAuth token | slack-sdk |
+| Gmail | `gmail` | gws CLI or OAuth2 | google-api-python-client, google-auth-oauthlib |
+| Google Calendar | `gcal` | gws CLI or OAuth2 | google-api-python-client, google-auth-oauthlib |
+| Salesforce | `salesforce` | Username/password | simple-salesforce |
+
 ## Dependencies
 
 **Core:** click, questionary, rich, jinja2, pyyaml, pydantic, neo4j
 **Optional:** anthropic, openai (for LLM data generation), neo4j-agent-memory (for memory-aware ingestion)
+**Connectors (optional):** PyGithub, notion-client, atlassian-python-api, slack-sdk, google-api-python-client, google-auth-oauthlib, simple-salesforce
 **Dev:** pytest, pytest-cov, pytest-asyncio
 **Build:** hatchling (src layout, bundles YAML/JSON/Jinja2 files automatically)
 
 ## What's Not Yet Implemented
 
-- SaaS data connectors (Gmail, Slack, Jira, GitHub, Notion, Salesforce)
-- Custom domain LLM generation ("describe your domain" flow)
-- npm wrapper package for `npx create-context-graph`
-- CI/CD and PyPI/npm publishing workflows
+- Comprehensive documentation (Diataxis framework)
+- Neo4j Labs compliance (badges, disclaimers, CONTRIBUTING.md)
+- End-to-end smoke tests (generated app starts and responds)

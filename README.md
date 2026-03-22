@@ -23,6 +23,8 @@ Create Context Graph walks you through an interactive wizard and generates a com
 - **Next.js + Chakra UI v3 frontend** with chat, graph visualization, and decision trace panels
 - **Neo4j schema** with domain-specific constraints, indexes, and GDS projections
 - **Synthetic demo data** — entities, relationships, documents, and decision traces
+- **SaaS data import** — connect GitHub, Slack, Gmail, Jira, Notion, Google Calendar, or Salesforce
+- **Custom domains** — describe your domain in plain English and the LLM generates a complete ontology
 - **Domain-specific agent tools** with Cypher queries tailored to your industry
 
 ```
@@ -69,6 +71,20 @@ uvx create-context-graph my-app \
   --domain financial-services \
   --framework pydanticai \
   --demo-data
+
+# Custom domain from description
+uvx create-context-graph my-app \
+  --custom-domain "veterinary clinic management" \
+  --framework pydanticai \
+  --anthropic-api-key $ANTHROPIC_API_KEY \
+  --demo-data
+
+# Import from SaaS services
+uvx create-context-graph my-app \
+  --domain personal-knowledge \
+  --framework pydanticai \
+  --connector github \
+  --connector slack
 ```
 
 ### 2. Start the app
@@ -110,6 +126,30 @@ make start         # Start backend (port 8000) + frontend (port 3000)
 create-context-graph --list-domains
 ```
 
+**Custom domains:** Don't see your industry? Select "Custom (describe your domain)" in the wizard or use `--custom-domain "your description"`. The LLM generates a complete ontology with entity types, relationships, agent tools, and more.
+
+## SaaS Data Connectors
+
+Import real data from your existing tools instead of (or in addition to) synthetic demo data:
+
+| Service | What's Imported | Auth |
+|---------|----------------|------|
+| **GitHub** | Issues, PRs, commits, contributors | Personal access token |
+| **Notion** | Pages, databases, users | Integration token |
+| **Jira** | Issues, sprints, users | API token |
+| **Slack** | Channel messages, threads, users | Bot OAuth token |
+| **Gmail** | Emails (last 30 days) | Google Workspace CLI or OAuth2 |
+| **Google Calendar** | Events, attendees (last 90 days) | Google Workspace CLI or OAuth2 |
+| **Salesforce** | Accounts, contacts, opportunities | Username/password |
+
+Connectors run at scaffold time to populate initial data. They're also generated into your project so you can re-import with `make import`:
+
+```bash
+cd my-app
+make import            # Re-import from connected services
+make import-and-seed   # Import and seed into Neo4j
+```
+
 ## Agent Frameworks
 
 Select your preferred agent framework at project creation time:
@@ -140,8 +180,11 @@ my-app/
 │   │   ├── models.py              # Pydantic models (from ontology)
 │   │   ├── context_graph_client.py # Neo4j CRUD operations
 │   │   ├── gds_client.py          # Graph Data Science algorithms
-│   │   └── vector_client.py       # Vector search
-│   ├── scripts/generate_data.py   # Data seeding script
+│   │   ├── vector_client.py       # Vector search
+│   │   └── connectors/            # SaaS connectors (if selected)
+│   ├── scripts/
+│   │   ├── generate_data.py       # Data seeding script
+│   │   └── import_data.py         # SaaS import script (if connectors selected)
 │   └── pyproject.toml
 ├── frontend/
 │   ├── app/                       # Next.js pages
@@ -177,6 +220,8 @@ Options:
   --domain TEXT             Domain ID (e.g., healthcare, gaming)
   --framework TEXT          Agent framework (pydanticai, claude-agent-sdk, openai-agents, langgraph, crewai, strands, google-adk, maf)
   --demo-data               Generate synthetic demo data
+  --custom-domain TEXT      Generate custom domain from description (requires --anthropic-api-key)
+  --connector TEXT          SaaS connector to enable; repeatable (github, slack, jira, notion, gmail, gcal, salesforce)
   --ingest                  Ingest data into Neo4j after generation
   --neo4j-uri TEXT          Neo4j connection URI [env: NEO4J_URI]
   --neo4j-username TEXT     Neo4j username [env: NEO4J_USERNAME]
@@ -206,10 +251,10 @@ git clone https://github.com/neo4j-labs/create-context-graph.git
 cd create-context-graph
 uv venv && uv pip install -e ".[dev]"
 
-# Run tests (318 tests, no Neo4j or API keys required)
+# Run tests (358 tests, no Neo4j or API keys required)
 source .venv/bin/activate
-pytest tests/ -v               # Fast: 142 tests
-pytest tests/ -v --slow        # Full: 318 tests (includes 176-combo domain x framework matrix)
+pytest tests/ -v               # Fast: 182 tests
+pytest tests/ -v --slow        # Full: 358 tests (includes 176-combo domain x framework matrix)
 
 # Test a specific scaffold
 create-context-graph /tmp/test-app --domain software-engineering --framework pydanticai --demo-data

@@ -92,6 +92,7 @@ class ProjectRenderer:
             "cypher_schema": generate_cypher_schema(self.ontology),
             "pydantic_models": generate_pydantic_models(self.ontology),
             "visualization": generate_visualization_config(self.ontology),
+            "saas_connectors": self.config.saas_connectors,
         }
 
     def _render_template(self, template_name: str, output_path: Path, ctx: dict) -> None:
@@ -170,6 +171,44 @@ class ProjectRenderer:
             ctx,
         )
 
+        # SaaS connector modules (only if connectors are configured)
+        if self.config.saas_connectors:
+            connector_dir = backend_dir / "app" / "connectors"
+            connector_dir.mkdir(parents=True, exist_ok=True)
+
+            # Base __init__.py
+            self._render_template(
+                "backend/connectors/__init__.py.j2",
+                connector_dir / "__init__.py",
+                ctx,
+            )
+
+            # Individual connector modules
+            connector_templates = {
+                "github": "github_connector",
+                "notion": "notion_connector",
+                "jira": "jira_connector",
+                "slack": "slack_connector",
+                "gmail": "gmail_connector",
+                "gcal": "gcal_connector",
+                "salesforce": "salesforce_connector",
+            }
+            for conn_id in self.config.saas_connectors:
+                template_name = connector_templates.get(conn_id)
+                if template_name:
+                    self._render_template(
+                        f"backend/connectors/{template_name}.py.j2",
+                        connector_dir / f"{template_name}.py",
+                        ctx,
+                    )
+
+            # Import data script
+            self._render_template(
+                "backend/connectors/import_data.py.j2",
+                backend_dir / "scripts" / "import_data.py",
+                ctx,
+            )
+
     def _render_frontend(self, frontend_dir: Path, ctx: dict) -> None:
         """Render the Next.js + Chakra UI v3 + NVL frontend."""
         templates = {
@@ -204,11 +243,15 @@ class ProjectRenderer:
         (data_dir / "documents").mkdir(exist_ok=True)
 
         # Copy the domain ontology YAML
-        from create_context_graph.ontology import _get_domains_path
+        if self.config.custom_domain_yaml:
+            # Write custom domain YAML directly
+            (data_dir / "ontology.yaml").write_text(self.config.custom_domain_yaml)
+        else:
+            from create_context_graph.ontology import _get_domains_path
 
-        domain_yaml = _get_domains_path() / f"{self.config.domain}.yaml"
-        if domain_yaml.exists():
-            shutil.copy2(domain_yaml, data_dir / "ontology.yaml")
+            domain_yaml = _get_domains_path() / f"{self.config.domain}.yaml"
+            if domain_yaml.exists():
+                shutil.copy2(domain_yaml, data_dir / "ontology.yaml")
 
         # Also copy base
         base_yaml = _get_domains_path() / "_base.yaml"

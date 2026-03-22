@@ -1,6 +1,6 @@
 # Roadmap — Create Context Graph
 
-> Last updated: March 21, 2026
+> Last updated: March 22, 2026
 
 ## Overview
 
@@ -110,51 +110,70 @@ Added all 8 agent framework templates, replaced NVL placeholder with real graph 
 
 ---
 
-## Phase 4: SaaS Import & Custom Domains — NOT STARTED
+## Phase 4: SaaS Import & Custom Domains — COMPLETE
 
 **Timeline:** Weeks 9–10
-**Status:** Planned
+**Status:** Done
 
-### Goals
+Implemented SaaS data connectors for 7 services and LLM-powered custom domain generation.
 
-Enable real data import from SaaS services and LLM-powered custom domain generation.
-
-### Planned work
+### What was built
 
 #### SaaS data connectors
 
-When the user selects "Connect to SaaS services" in the wizard, present prompts for service API keys. Each connector: fetch data, normalize to common document format, ingest via MemoryClient.
+- **Connectors package** (`connectors/`) — `BaseConnector` ABC, `NormalizedData` Pydantic model matching fixture schema, connector registry with `@register_connector` decorator
+- **7 service connectors**, each with `authenticate()`, `fetch()`, and `get_credential_prompts()`:
 
-| Service | Data Imported | Auth Method |
-|---------|--------------|-------------|
-| Gmail | Emails (last 30 days, up to 200) | OAuth2 / App Password |
-| Google Calendar | Calendar events (last 90 days) | OAuth2 |
-| Slack | Channel messages (configurable channels) | Bot token |
-| Jira | Issues and comments (configurable project) | API token |
-| GitHub | Issues, PRs, commits (configurable repo) | Personal access token |
-| Notion | Pages and databases | Integration token |
-| Salesforce | Accounts, contacts, opportunities | OAuth2 / Connected App |
+| Service | Connector | Auth Method | Dependencies |
+|---------|-----------|-------------|-------------|
+| GitHub | `github_connector.py` | Personal access token | PyGithub |
+| Notion | `notion_connector.py` | Integration token | notion-client |
+| Jira | `jira_connector.py` | API token | atlassian-python-api |
+| Slack | `slack_connector.py` | Bot OAuth token | slack-sdk |
+| Gmail | `gmail_connector.py` | gws CLI or OAuth2 | google-api-python-client, google-auth-oauthlib |
+| Google Calendar | `gcal_connector.py` | gws CLI or OAuth2 | google-api-python-client, google-auth-oauthlib |
+| Salesforce | `salesforce_connector.py` | Username/password + security token | simple-salesforce |
 
-Implementation: `src/create_context_graph/connectors/` with one module per service. Each connector implements a `fetch()` method that returns normalized documents.
-
-OAuth2 services require a local redirect flow: temporary HTTP server on a random port, browser-based consent, auth code capture, token exchange.
+- **Google Workspace CLI (`gws`) integration** — Gmail and Google Calendar connectors detect `gws` on PATH, offer to install via npm if missing, fall back to Python OAuth2
+- **OAuth2 local redirect flow** (`oauth.py`) — Temporary HTTP server on random port, browser consent, auth code capture, token exchange
+- **Dual-purpose connectors** — Run at scaffold time to populate initial data AND generated into the scaffolded project for ongoing `make import` / `make import-and-seed` usage
+- **Connector templates** — 7 standalone connector `.py.j2` templates + `import_data.py.j2` generated into scaffolded projects (only for selected connectors)
+- **Makefile targets** — `make import` and `make import-and-seed` added to generated projects when SaaS connectors are selected
+- **Wizard integration** — Checkbox selection of connectors, credential prompts, gws CLI detection and install prompt
+- **CLI flags** — `--connector` (multiple) for non-interactive connector selection
+- **Optional dependencies** — New `[connectors]` extra in pyproject.toml
 
 #### Custom domain generation
 
-When the user selects "Custom (describe your domain)":
-1. Prompt for natural language domain description
-2. Send to LLM with `_base.yaml` + 2 reference domain YAMLs as few-shot examples
-3. LLM generates complete domain YAML
-4. Validate against `DomainOntology` Pydantic model (entity types have valid POLE+O types, relationships reference existing entities, at least 3 entity types, property types from allowed set, colors are valid hex)
-5. If validation fails, retry with error feedback (up to 3 attempts)
-6. Show generated ontology summary to user for confirmation
-7. Proceed with normal scaffolding pipeline
+- **`custom_domain.py`** — LLM-powered domain YAML generation:
+  1. Loads `_base.yaml` + 2 reference domain YAMLs (healthcare, wildlife-management) as few-shot examples
+  2. Builds prompt with complete YAML schema specification
+  3. Calls LLM (Anthropic/OpenAI) via existing `generator.py` abstraction
+  4. Parses YAML, validates against `DomainOntology` Pydantic model
+  5. On validation failure, retries with error feedback (up to 3 attempts)
+  6. Returns `(DomainOntology, raw_yaml_string)`
+- **`ontology.py` extensions** — `load_domain_from_yaml_string()`, `load_domain_from_path()`, `list_available_domains()` now scans `~/.create-context-graph/custom-domains/`
+- **Wizard integration** — Description prompt → LLM generation with spinner → Rich summary table → accept/regenerate/edit → optional save for reuse
+- **CLI flag** — `--custom-domain "description"` for non-interactive custom domain generation
+- **Renderer support** — Custom domain YAML written directly to `data/ontology.yaml`
+- **Persistence** — Custom domains saved to `~/.create-context-graph/custom-domains/` and appear in future wizard runs
 
-### Tests to add
+### Bug fixes
 
-- Custom domain generation with mock LLM responses
-- Connector unit tests with mock API responses
-- Validation tests for malformed custom ontologies
+- Fixed `cli.py:73` — `data_source` was always `"demo"` regardless of flags
+
+### Tests added (40 new tests)
+
+- `test_custom_domain.py` — 17 tests: YAML string loading, base merge, validation errors, prompt construction, mocked LLM generation (success, retry, max retries), display, save, custom domain listing
+- `test_connectors.py` — 23 tests: NormalizedData model, merge, registry (7 connectors), credential prompts, mocked fetch for GitHub/Notion/Jira/Slack/Gmail/GCal/Salesforce, OAuth helpers
+
+### Verified
+
+- All 7 connectors register and expose credential prompts
+- Mocked connector fetches return valid NormalizedData
+- Custom domain generation succeeds with mocked LLM
+- Custom domain retry loop works on validation failure
+- 182/182 tests pass in 5.2 seconds
 
 ---
 
@@ -165,19 +184,9 @@ When the user selects "Custom (describe your domain)":
 
 ### Goals
 
-Prepare for public release: npm wrapper, comprehensive testing, documentation, and publishing.
+Prepare for public release: comprehensive testing, documentation, and publishing.
 
 ### Planned work
-
-#### npm wrapper package
-
-`npm-wrapper/` — Thin Node.js shim published as `create-context-graph` on npm:
-1. Try `uvx create-context-graph` (preferred — uv's ephemeral environment)
-2. Fallback: `pipx run create-context-graph`
-3. Fallback: `python3 -m create_context_graph`
-4. If none work: print clear error with install instructions for `uv`
-
-All `process.argv.slice(2)` forwarded to the Python process.
 
 #### End-to-end testing
 
@@ -231,8 +240,8 @@ All `process.argv.slice(2)` forwarded to the Python process.
 
 | Phase | Description | Status | Tests |
 |-------|-------------|--------|-------|
-| 1 | Core CLI & Template Engine | **Complete** | 103 passing |
+| 1 | Core CLI & Template Engine | **Complete** | 182 passing |
 | 2 | Domain Expansion & Data Generation | **Complete** | (included above) |
 | 3 | Framework Templates & Frontend | **Complete** | (included above) |
-| 4 | SaaS Import & Custom Domains | Not started | — |
+| 4 | SaaS Import & Custom Domains | **Complete** | (included above) |
 | 5 | Polish, Testing & Launch | Not started | — |

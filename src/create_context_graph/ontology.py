@@ -131,27 +131,45 @@ def _get_domains_path() -> Path:
     return Path(str(files("create_context_graph") / "domains"))
 
 
+def _get_custom_domains_path() -> Path:
+    """Return the path to the user-local custom domains directory."""
+    return Path.home() / ".create-context-graph" / "custom-domains"
+
+
 def list_available_domains() -> list[dict[str, str]]:
     """Return list of available domain IDs and display names.
 
+    Scans both bundled domains and user-local custom domains in
+    ~/.create-context-graph/custom-domains/.
+
     Returns a list of dicts with 'id' and 'name' keys, sorted by name.
     """
-    domains_dir = _get_domains_path()
     results = []
-    for path in sorted(domains_dir.glob("*.yaml")):
-        if path.stem.startswith("_"):
+    seen_ids: set[str] = set()
+
+    for domains_dir in [_get_domains_path(), _get_custom_domains_path()]:
+        if not domains_dir.exists():
             continue
-        try:
-            with open(path) as f:
-                data = yaml.safe_load(f)
-            domain_info = data.get("domain", {})
-            results.append({
-                "id": domain_info.get("id", path.stem),
-                "name": domain_info.get("name", path.stem.replace("-", " ").title()),
-            })
-        except Exception:
-            results.append({"id": path.stem, "name": path.stem.replace("-", " ").title()})
-    return results
+        for path in sorted(domains_dir.glob("*.yaml")):
+            if path.stem.startswith("_"):
+                continue
+            try:
+                with open(path) as f:
+                    data = yaml.safe_load(f)
+                domain_info = data.get("domain", {})
+                domain_id = domain_info.get("id", path.stem)
+                if domain_id in seen_ids:
+                    continue
+                seen_ids.add(domain_id)
+                results.append({
+                    "id": domain_id,
+                    "name": domain_info.get("name", path.stem.replace("-", " ").title()),
+                })
+            except Exception:
+                if path.stem not in seen_ids:
+                    seen_ids.add(path.stem)
+                    results.append({"id": path.stem, "name": path.stem.replace("-", " ").title()})
+    return sorted(results, key=lambda d: d["name"])
 
 
 def _load_base() -> dict:
@@ -221,6 +239,47 @@ def load_domain(domain_id: str) -> DomainOntology:
         data = _merge_base(base, data)
 
     # Remove the inherits key before parsing
+    data.pop("inherits", None)
+    if "domain" in data and isinstance(data["domain"], dict):
+        data["domain"].pop("inherits", None)
+
+    return DomainOntology.model_validate(data)
+
+
+def load_domain_from_yaml_string(yaml_content: str) -> DomainOntology:
+    """Load a domain ontology from a raw YAML string, merging with base definitions.
+
+    Useful for validating LLM-generated domain ontologies without writing to disk.
+    """
+    data = yaml.safe_load(yaml_content)
+    if not data or not isinstance(data, dict):
+        raise ValueError("Invalid YAML: expected a mapping")
+
+    # Merge base if domain declares inheritance
+    if data.get("inherits") == "_base" or data.get("domain", {}).get("inherits") == "_base":
+        base = _load_base()
+        data = _merge_base(base, data)
+
+    # Remove the inherits key before parsing
+    data.pop("inherits", None)
+    if "domain" in data and isinstance(data["domain"], dict):
+        data["domain"].pop("inherits", None)
+
+    return DomainOntology.model_validate(data)
+
+
+def load_domain_from_path(path: Path) -> DomainOntology:
+    """Load a domain ontology from an arbitrary filesystem path."""
+    if not path.exists():
+        raise FileNotFoundError(f"Domain ontology not found: {path}")
+
+    with open(path) as f:
+        data = yaml.safe_load(f)
+
+    if data.get("inherits") == "_base" or data.get("domain", {}).get("inherits") == "_base":
+        base = _load_base()
+        data = _merge_base(base, data)
+
     data.pop("inherits", None)
     if "domain" in data and isinstance(data["domain"], dict):
         data["domain"].pop("inherits", None)

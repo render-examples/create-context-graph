@@ -41,13 +41,22 @@ generate = [
 ingest = [
     "neo4j-agent-memory>=0.0.5",
 ]
+connectors = [
+    "PyGithub>=2.0",
+    "notion-client>=2.0",
+    "atlassian-python-api>=3.40",
+    "slack-sdk>=3.20",
+    "google-api-python-client>=2.100",
+    "google-auth-oauthlib>=1.0",
+    "simple-salesforce>=1.12",
+]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
     "pytest-asyncio>=0.24",
 ]
 all = [
-    "create-context-graph[generate,ingest]",
+    "create-context-graph[generate,ingest,connectors]",
 ]
 
 [project.scripts]

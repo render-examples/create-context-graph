@@ -44,6 +44,15 @@ docker-down:
 	docker compose down
 {% endif %}
 
+{% if saas_connectors %}
+# Data import from connected services
+import:
+	cd backend && uv run python scripts/import_data.py
+
+import-and-seed: import
+	cd backend && uv run python scripts/generate_data.py --ingest
+{% endif %}
+
 # Test
 test:
 	cd backend && uv run python -m pytest tests/ -v 2>/dev/null || echo "No backend tests found"
