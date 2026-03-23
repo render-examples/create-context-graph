@@ -122,4 +122,50 @@ async def handle_message(message: str, session_id: str | None = None) -> dict:
         "session_id": session_id,
         "graph_data": None,
     }
+
+
+async def handle_message_stream(message: str, session_id: str | None = None) -> dict:
+    """Handle a chat message with streaming text deltas via the collector event queue."""
+    from app.context_graph_client import get_collector
+
+    if session_id is None:
+        session_id = str(uuid.uuid4())
+
+    collector = get_collector()
+    history = await get_conversation_history(session_id)
+    await store_message(session_id, "user", message)
+
+    # Convert history to PydanticAI message format
+    from pydantic_ai.messages import ModelRequest, ModelResponse, UserPromptPart, TextPart
+    message_history = []
+    for msg in history:
+        if msg["role"] == "user":
+            message_history.append(
+                ModelRequest(parts=[UserPromptPart(content=msg["content"])])
+            )
+        elif msg["role"] == "assistant":
+            message_history.append(
+                ModelResponse(parts=[TextPart(content=msg["content"])])
+            )
+
+    deps = AgentDeps(session_id=session_id)
+    async with agent.run_stream(
+        message, deps=deps, message_history=message_history
+    ) as result:
+        response_text = ""
+        async for chunk in result.stream_text(delta=True):
+            collector.emit_text_delta(chunk)
+            response_text += chunk
+
+    if not response_text:
+        response_text = result.output or ""
+
+    await store_message(session_id, "assistant", response_text)
+    collector.emit_done(response_text, session_id)
+
+    return {
+        "response": response_text,
+        "session_id": session_id,
+        "graph_data": None,
+    }
 {% endraw %}

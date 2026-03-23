@@ -2,8 +2,13 @@
 {% raw %}
 from __future__ import annotations
 
+import asyncio
+import json
+import uuid as _uuid
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+from starlette.responses import StreamingResponse
 
 from app.agent import handle_message
 from app.context_graph_client import (
@@ -11,6 +16,12 @@ from app.context_graph_client import (
     get_schema_visualization, expand_node, get_collector, is_connected,
 )
 from app.gds_client import check_gds_available, run_community_detection, run_pagerank
+
+# Try to import streaming handler (only available for some agent frameworks)
+try:
+    from app.agent import handle_message_stream  # type: ignore[attr-defined]
+except ImportError:
+    handle_message_stream = None
 
 router = APIRouter()
 
@@ -67,6 +78,77 @@ async def chat(request: ChatRequest):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/chat/stream")
+async def chat_stream(request: ChatRequest):
+    """Send a message to the AI agent with streaming SSE response.
+
+    Emits Server-Sent Events:
+      - session_id: {session_id}
+      - tool_start: {name, inputs}
+      - tool_end:   {name, output_preview, graph_data}
+      - text_delta: {text}
+      - done:       {response}
+      - error:      {detail}
+    """
+    if not is_connected():
+        raise HTTPException(
+            status_code=503,
+            detail="Neo4j is unavailable. Check your database connection and restart the server.",
+        )
+
+    session_id = request.session_id or str(_uuid.uuid4())
+    collector = get_collector()
+    collector.drain()
+    collector.drain_tool_calls()
+
+    event_queue: asyncio.Queue = asyncio.Queue()
+    collector.set_event_queue(event_queue)
+
+    async def run_agent():
+        try:
+            if handle_message_stream is not None:
+                await handle_message_stream(request.message, session_id)
+            else:
+                result = await handle_message(request.message, session_id)
+                response_text = result.get("response", "")
+                collector.emit_text_delta(response_text)
+                collector.emit_done(response_text, session_id)
+        except Exception as e:
+            event_queue.put_nowait({"event": "error", "data": {"detail": str(e)}})
+        finally:
+            collector.clear_event_queue()
+
+    async def event_generator():
+        task = asyncio.create_task(run_agent())
+        # Emit session_id as first event
+        yield f"event: session_id\ndata: {json.dumps({'session_id': session_id})}\n\n"
+        try:
+            while True:
+                try:
+                    event = await asyncio.wait_for(event_queue.get(), timeout=120.0)
+                except asyncio.TimeoutError:
+                    yield f"event: error\ndata: {json.dumps({'detail': 'Request timed out'})}\n\n"
+                    break
+                event_type = event["event"]
+                event_data = json.dumps(event["data"], default=str)
+                yield f"event: {event_type}\ndata: {event_data}\n\n"
+                if event_type in ("done", "error"):
+                    break
+        finally:
+            if not task.done():
+                task.cancel()
+                try:
+                    await task
+                except (asyncio.CancelledError, Exception):
+                    pass
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post("/search")

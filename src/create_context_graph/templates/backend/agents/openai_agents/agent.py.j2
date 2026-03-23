@@ -101,4 +101,47 @@ async def handle_message(message: str, session_id: str | None = None) -> dict:
         "session_id": session_id,
         "graph_data": None,
     }
+
+
+async def handle_message_stream(message: str, session_id: str | None = None) -> dict:
+    """Handle a chat message with streaming text deltas via the collector event queue."""
+    from app.context_graph_client import get_collector
+
+    if session_id is None:
+        session_id = str(uuid.uuid4())
+
+    collector = get_collector()
+    history = await get_conversation_history(session_id)
+    await store_message(session_id, "user", message)
+
+    # Build input with conversation history context
+    if history:
+        context = "\n".join(
+            f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content']}"
+            for m in history
+        )
+        input_message = f"Previous conversation:\n{context}\n\nUser: {message}"
+    else:
+        input_message = message
+
+    result = Runner.run_streamed(agent, input_message)
+    response_text = ""
+    async for event in result.stream_events():
+        if event.type == "raw_response_event" and hasattr(event.data, "delta"):
+            delta = getattr(event.data, "delta", "")
+            if delta:
+                collector.emit_text_delta(delta)
+                response_text += delta
+
+    if not response_text:
+        response_text = result.final_output or ""
+
+    await store_message(session_id, "assistant", response_text)
+    collector.emit_done(response_text, session_id)
+
+    return {
+        "response": response_text,
+        "session_id": session_id,
+        "graph_data": None,
+    }
 {% endraw %}

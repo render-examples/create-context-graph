@@ -112,4 +112,49 @@ async def handle_message(message: str, session_id: str | None = None) -> dict:
         "session_id": session_id,
         "graph_data": None,
     }
+
+
+async def handle_message_stream(message: str, session_id: str | None = None) -> dict:
+    """Handle a chat message with streaming text deltas via the collector event queue."""
+    from app.context_graph_client import get_collector
+
+    if session_id is None:
+        session_id = str(uuid.uuid4())
+
+    collector = get_collector()
+    history = await get_conversation_history(session_id)
+    await store_message(session_id, "user", message)
+
+    from langchain_core.messages import HumanMessage, AIMessage
+    history_messages = []
+    for msg in history:
+        if msg["role"] == "user":
+            history_messages.append(HumanMessage(content=msg["content"]))
+        elif msg["role"] == "assistant":
+            history_messages.append(AIMessage(content=msg["content"]))
+
+    response_text = ""
+    async for event in graph.astream_events(
+        {"messages": history_messages + [HumanMessage(content=message)]},
+        config={"configurable": {"thread_id": session_id}},
+        version="v2",
+    ):
+        kind = event.get("event", "")
+        if kind == "on_chat_model_stream":
+            chunk = event.get("data", {}).get("chunk")
+            if chunk and hasattr(chunk, "content") and isinstance(chunk.content, str):
+                collector.emit_text_delta(chunk.content)
+                response_text += chunk.content
+
+    if not response_text:
+        response_text = "No response generated."
+
+    await store_message(session_id, "assistant", response_text)
+    collector.emit_done(response_text, session_id)
+
+    return {
+        "response": response_text,
+        "session_id": session_id,
+        "graph_data": None,
+    }
 {% endraw %}

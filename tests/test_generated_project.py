@@ -648,3 +648,138 @@ class TestGISCartographyEnumCompilation:
         source = models_path.read_text()
         compile(source, "models.py", "exec")
         assert "_3D_MODEL" in source
+
+
+# ---------------------------------------------------------------------------
+# Streaming SSE support tests
+# ---------------------------------------------------------------------------
+
+STREAMING_FRAMEWORKS = ["pydanticai", "anthropic-tools", "claude-agent-sdk", "openai-agents", "langgraph"]
+NON_STREAMING_FRAMEWORKS = ["crewai", "strands", "google-adk"]
+
+
+class TestStreamingEndpoint:
+    """Verify /chat/stream SSE endpoint is generated in routes.py."""
+
+    def test_routes_has_stream_endpoint(self, generated_project):
+        out, _ = generated_project
+        routes = (out / "backend" / "app" / "routes.py").read_text()
+        assert "/chat/stream" in routes
+        assert "StreamingResponse" in routes
+        assert "text/event-stream" in routes
+
+    def test_routes_has_event_generator(self, generated_project):
+        out, _ = generated_project
+        routes = (out / "backend" / "app" / "routes.py").read_text()
+        assert "event_generator" in routes
+        assert "event_queue" in routes
+
+    def test_routes_imports_streaming(self, generated_project):
+        out, _ = generated_project
+        routes = (out / "backend" / "app" / "routes.py").read_text()
+        assert "from starlette.responses import StreamingResponse" in routes
+        assert "import asyncio" in routes
+
+    def test_original_chat_endpoint_preserved(self, generated_project):
+        out, _ = generated_project
+        routes = (out / "backend" / "app" / "routes.py").read_text()
+        assert '@router.post("/chat", response_model=ChatResponse)' in routes
+
+
+class TestCollectorEventQueue:
+    """Verify CypherResultCollector has event queue support."""
+
+    def test_collector_has_event_queue_methods(self, generated_project):
+        out, _ = generated_project
+        client = (out / "backend" / "app" / "context_graph_client.py").read_text()
+        assert "set_event_queue" in client
+        assert "clear_event_queue" in client
+        assert "emit_tool_start" in client
+        assert "emit_text_delta" in client
+        assert "emit_done" in client
+        assert "_push_event" in client
+
+    def test_collector_imports_asyncio(self, generated_project):
+        out, _ = generated_project
+        client = (out / "backend" / "app" / "context_graph_client.py").read_text()
+        assert "import asyncio" in client
+
+
+class TestStreamingAgentTemplates:
+    """Verify streaming handler is exported for Tier 1/2 frameworks."""
+
+    @pytest.mark.parametrize("framework", STREAMING_FRAMEWORKS)
+    def test_streaming_handler_exported(self, tmp_path, framework):
+        config = ProjectConfig(
+            project_name="Stream Test",
+            domain="financial-services",
+            framework=framework,
+        )
+        ontology = load_domain("financial-services")
+        out = tmp_path / "stream-test"
+        renderer = ProjectRenderer(config, ontology)
+        renderer.render(out)
+
+        agent_source = (out / "backend" / "app" / "agent.py").read_text()
+        assert "handle_message_stream" in agent_source
+        compile(agent_source, "agent.py", "exec")
+
+    @pytest.mark.parametrize("framework", NON_STREAMING_FRAMEWORKS)
+    def test_non_streaming_frameworks_no_stream_handler(self, tmp_path, framework):
+        config = ProjectConfig(
+            project_name="No Stream Test",
+            domain="financial-services",
+            framework=framework,
+        )
+        ontology = load_domain("financial-services")
+        out = tmp_path / "no-stream-test"
+        renderer = ProjectRenderer(config, ontology)
+        renderer.render(out)
+
+        agent_source = (out / "backend" / "app" / "agent.py").read_text()
+        assert "handle_message_stream" not in agent_source
+
+    @pytest.mark.parametrize("framework", STREAMING_FRAMEWORKS)
+    def test_streaming_handler_uses_collector(self, tmp_path, framework):
+        config = ProjectConfig(
+            project_name="Collector Test",
+            domain="financial-services",
+            framework=framework,
+        )
+        ontology = load_domain("financial-services")
+        out = tmp_path / "collector-test"
+        renderer = ProjectRenderer(config, ontology)
+        renderer.render(out)
+
+        agent_source = (out / "backend" / "app" / "agent.py").read_text()
+        assert "get_collector" in agent_source
+        assert "emit_text_delta" in agent_source
+        assert "emit_done" in agent_source
+
+
+class TestStreamingFrontend:
+    """Verify ChatInterface has streaming support."""
+
+    def test_chat_interface_uses_streaming(self, generated_project):
+        out, _ = generated_project
+        chat = (out / "frontend" / "components" / "ChatInterface.tsx").read_text()
+        assert "/chat/stream" in chat
+        assert "ReadableStream" in chat or "getReader" in chat
+        assert "text_delta" in chat
+        assert "tool_start" in chat
+        assert "tool_end" in chat
+
+    def test_chat_interface_has_timeline(self, generated_project):
+        out, _ = generated_project
+        chat = (out / "frontend" / "components" / "ChatInterface.tsx").read_text()
+        assert "Timeline" in chat
+
+    def test_chat_interface_has_skeleton(self, generated_project):
+        out, _ = generated_project
+        chat = (out / "frontend" / "components" / "ChatInterface.tsx").read_text()
+        assert "Skeleton" in chat
+
+    def test_chat_interface_has_collapsible(self, generated_project):
+        out, _ = generated_project
+        chat = (out / "frontend" / "components" / "ChatInterface.tsx").read_text()
+        assert "Collapsible" in chat

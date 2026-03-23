@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import json as _json
 import logging
 
 from neo4j import AsyncGraphDatabase, AsyncDriver
@@ -20,11 +22,48 @@ _memory_client = None  # MemoryClient | None — lazy typed to avoid import erro
 # ---------------------------------------------------------------------------
 
 class CypherResultCollector:
-    """Collects Cypher query results for downstream graph visualization."""
+    """Collects Cypher query results for downstream graph visualization.
+
+    When an event queue is attached (via ``set_event_queue``), the collector
+    also pushes SSE-ready event dicts to the queue so the streaming endpoint
+    can forward them to the frontend in real time.
+    """
 
     def __init__(self):
         self.results: list[dict] = []
         self.tool_calls: list[dict] = []
+        self._event_queue: asyncio.Queue | None = None
+
+    # -- event queue management ------------------------------------------------
+
+    def set_event_queue(self, queue: asyncio.Queue) -> None:
+        """Attach an asyncio.Queue for SSE streaming."""
+        self._event_queue = queue
+
+    def clear_event_queue(self) -> None:
+        """Detach the event queue."""
+        self._event_queue = None
+
+    def _push_event(self, event: str, data: dict) -> None:
+        """Push an SSE event to the queue if one is attached."""
+        if self._event_queue is not None:
+            self._event_queue.put_nowait({"event": event, "data": data})
+
+    # -- tool call events ------------------------------------------------------
+
+    def emit_tool_start(self, name: str, inputs: dict) -> None:
+        """Emit a tool_start SSE event."""
+        self._push_event("tool_start", {"name": name, "inputs": inputs})
+
+    def emit_text_delta(self, text: str) -> None:
+        """Emit a text_delta SSE event."""
+        self._push_event("text_delta", {"text": text})
+
+    def emit_done(self, response_text: str, session_id: str = "") -> None:
+        """Emit a done SSE event."""
+        self._push_event("done", {"response": response_text, "session_id": session_id})
+
+    # -- existing collection methods -------------------------------------------
 
     def collect(self, records: list[dict]) -> None:
         self.results.extend(records)
@@ -34,6 +73,13 @@ class CypherResultCollector:
             "name": name,
             "inputs": inputs,
             "output_preview": output_preview[:500],
+        })
+        # Emit tool_end SSE event with the graph data collected so far
+        self._push_event("tool_end", {
+            "name": name,
+            "inputs": inputs,
+            "output_preview": output_preview[:500],
+            "graph_data": {"results": list(self.results)},
         })
 
     def drain(self) -> list[dict]:
@@ -191,6 +237,8 @@ async def execute_cypher(
 ) -> list[dict]:
     """Execute a Cypher query and return results as dicts with graph metadata."""
     driver = get_driver()
+    if tool_name and collect:
+        _collector.emit_tool_start(tool_name, parameters or {})
     async with driver.session() as session:
         result = await session.run(query, parameters or {}, timeout=timeout)
         records = []
