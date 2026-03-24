@@ -91,6 +91,44 @@ The AI agent has access to the following domain-specific tools:
 - **execute_cypher** — Run ad-hoc Cypher queries
 - **get_schema** — View the graph schema
 
+## Agent Framework: {{ framework_display_name }}
+
+{% if framework == 'pydanticai' %}
+This project uses [PydanticAI](https://ai.pydantic.dev/) with tool decorators and typed dependencies. The agent is defined in `backend/app/agent.py` using `@agent.tool` decorators for each domain tool. Supports full streaming via `agent.run_stream()`.
+
+To change the LLM model, edit the `Agent(model=...)` parameter in `agent.py`.
+{% elif framework == 'claude_agent_sdk' %}
+This project uses the [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk) with a dict-based tool list and an agentic while loop. The agent handles tool calls iteratively until the model stops requesting tools. Supports full streaming via `client.messages.stream()`.
+
+Requires `ANTHROPIC_API_KEY` in `.env`.
+{% elif framework == 'openai_agents' %}
+This project uses the [OpenAI Agents SDK](https://github.com/openai/openai-agents-python) with `@function_tool` decorators and `Runner.run()`. Supports full streaming via `Runner.run_streamed()`.
+
+Requires `OPENAI_API_KEY` in `.env`.
+{% elif framework == 'langgraph' %}
+This project uses [LangGraph](https://langchain-ai.github.io/langgraph/) with `@tool` decorators and `create_react_agent()`. The agent is a compiled graph that manages tool execution state. Supports full streaming via `graph.astream_events()`.
+
+Requires `ANTHROPIC_API_KEY` in `.env` (uses `langchain-anthropic`).
+{% elif framework == 'crewai' %}
+This project uses [CrewAI](https://www.crewai.com/) with an Agent/Task/Crew architecture. Tools are decorated with `@tool` and the crew orchestrates execution. Runs synchronously via `asyncio.to_thread()`.
+
+**Note:** CrewAI requires Python 3.11+. Streaming is limited to real-time tool call visualization; text arrives after the crew completes.
+{% elif framework == 'strands' %}
+This project uses [Strands Agents](https://github.com/strands-agents/strands-agents) (AWS) with `@tool` decorators and a Bedrock-backed model. Runs synchronously via `asyncio.to_thread()`.
+
+Streaming is limited to real-time tool call visualization; text arrives after the agent completes.
+{% elif framework == 'google_adk' %}
+This project uses [Google ADK](https://github.com/google/adk-python) with `FunctionTool` wrappers and a Gemini model. The ADK runner manages sessions and tool execution. Supports full streaming via `runner.run_async()`.
+
+Requires a Google Cloud API key or credentials configured for Gemini access.
+{% elif framework == 'anthropic_tools' %}
+This project uses the [Anthropic API](https://docs.anthropic.com/) directly with a modular `@register_tool` registry and an agentic while loop. Supports full streaming via `client.messages.stream()`.
+
+Requires `ANTHROPIC_API_KEY` in `.env`.
+{% endif %}
+
+See `backend/app/agent.py` for the full implementation.
+
 ## Environment Variables
 
 Copy `.env.example` to `.env` and fill in your values:
@@ -108,3 +146,36 @@ cp .env.example .env
 | `OPENAI_API_KEY` | OpenAI API key (for embeddings) |
 | `BACKEND_PORT` | Backend port (default: 8000) |
 | `FRONTEND_PORT` | Frontend port (default: 3000) |
+
+## Troubleshooting
+
+### Neo4j Connection Errors
+
+**"Neo4j is unavailable" on all endpoints**
+- Verify your `.env` file has correct `NEO4J_URI`, `NEO4J_USERNAME`, and `NEO4J_PASSWORD`
+- Run `make test-connection` to validate credentials
+{% if neo4j_type == 'aura' %}
+- Ensure your Aura instance is running and the URI starts with `neo4j+s://`
+{% elif neo4j_type == 'docker' %}
+- Run `make docker-up` first, then wait a few seconds for Neo4j to start
+{% elif neo4j_type == 'local' %}
+- Run `make neo4j-start` first and check status with `make neo4j-status`
+{% endif %}
+
+**Extra variables in `.env`**
+- The backend accepts extra environment variables, so standard Neo4j Aura `.env` exports (with `NEO4J_DATABASE`, `AURA_INSTANCEID`, etc.) work without editing
+
+### Backend Issues
+
+**Port already in use**
+- Change `BACKEND_PORT` in `.env` (default: 8000)
+- Kill existing process: `lsof -ti:8000 | xargs kill`
+
+**API key not set**
+- Set `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` in `.env` depending on your agent framework
+
+### Frontend Issues
+
+**Build errors after `npm install`**
+- Delete `node_modules` and `package-lock.json`, then run `npm install` again
+- Ensure Node.js 18+ is installed
