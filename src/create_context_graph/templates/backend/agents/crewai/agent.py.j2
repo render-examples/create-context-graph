@@ -7,10 +7,6 @@ import uuid
 
 import asyncio
 
-import nest_asyncio
-if not getattr(asyncio, "_nest_patched", False):
-    nest_asyncio.apply()
-
 from crewai import Agent, Crew, Task
 from crewai.tools import tool
 
@@ -22,13 +18,8 @@ from app.context_graph_client import (
 
 
 def _run_sync(coro):
-    """Run an async coroutine synchronously, compatible with nest_asyncio."""
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    return loop.run_until_complete(coro)
+    """Run an async coroutine from a synchronous worker thread."""
+    return asyncio.run(coro)
 
 
 SYSTEM_PROMPT = """{{ system_prompt }}"""

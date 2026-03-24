@@ -6,10 +6,6 @@ import asyncio
 import json
 import uuid
 
-import nest_asyncio
-if not getattr(asyncio, "_nest_patched", False):
-    nest_asyncio.apply()
-
 from strands import Agent
 from strands.tools import tool
 
@@ -21,13 +17,8 @@ from app.context_graph_client import (
 
 
 def _run_sync(coro):
-    """Run an async coroutine synchronously, compatible with nest_asyncio."""
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    return loop.run_until_complete(coro)
+    """Run an async coroutine from a synchronous worker thread."""
+    return asyncio.run(coro)
 
 
 SYSTEM_PROMPT = """{{ system_prompt }}"""
@@ -109,7 +100,7 @@ async def handle_message(message: str, session_id: str | None = None) -> dict:
     else:
         input_message = message
 
-    result = agent(input_message)
+    result = await asyncio.to_thread(agent, input_message)
 
     response_text = str(result)
     await store_message(session_id, "assistant", response_text)

@@ -6,6 +6,8 @@ import asyncio
 import json
 import uuid
 
+# Google ADK calls sync tool functions from within its async run_async() loop,
+# requiring nest_asyncio to bridge sync tools back to async execute_cypher().
 import nest_asyncio
 if not getattr(asyncio, "_nest_patched", False):
     nest_asyncio.apply()
@@ -21,12 +23,16 @@ from app.context_graph_client import (
 
 
 def _run_sync(coro):
-    """Run an async coroutine synchronously, compatible with nest_asyncio."""
+    """Run an async coroutine from a synchronous context.
+
+    Prefers asyncio.run() when no event loop is running (worker threads).
+    Falls back to nest_asyncio-patched loop.run_until_complete() when
+    called from within ADK's async run_async() context.
+    """
     try:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
     except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        return asyncio.run(coro)
     return loop.run_until_complete(coro)
 
 

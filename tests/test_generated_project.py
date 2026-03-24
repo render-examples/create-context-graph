@@ -783,3 +783,75 @@ class TestStreamingFrontend:
         out, _ = generated_project
         chat = (out / "frontend" / "components" / "ChatInterface.tsx").read_text()
         assert "Collapsible" in chat
+
+
+class TestQABugFixes:
+    """Verify fixes for QA report bugs (v0.4.3)."""
+
+    def test_config_extra_ignore(self, generated_project):
+        """BUG-001: Settings model must accept extra env vars."""
+        out, _ = generated_project
+        config = (out / "backend" / "app" / "config.py").read_text()
+        assert '"extra"' in config or "'extra'" in config
+        assert "ignore" in config
+
+    def test_neo4j_connected_flag(self, generated_project):
+        """BUG-002: is_connected() must use tracked state, not sync verify."""
+        out, _ = generated_project
+        client = (out / "backend" / "app" / "context_graph_client.py").read_text()
+        assert "_connected" in client
+        assert "return _connected" in client
+
+    def test_routes_all_endpoints_guarded(self, generated_project):
+        """BUG-003: All Neo4j endpoints must have connectivity guards."""
+        out, _ = generated_project
+        routes = (out / "backend" / "app" / "routes.py").read_text()
+        assert "_require_neo4j" in routes
+        # Verify guard appears in key endpoints (not just /chat)
+        assert routes.count("_require_neo4j()") >= 10
+
+    def test_cypher_endpoint_503_before_400(self, generated_project):
+        """BUG-004: /cypher must return 503 for connection errors, 400 for syntax."""
+        out, _ = generated_project
+        routes = (out / "backend" / "app" / "routes.py").read_text()
+        # Find the cypher endpoint and verify guard comes before try/except
+        cypher_idx = routes.index("def cypher(")
+        guard_idx = routes.index("_require_neo4j()", cypher_idx)
+        try_idx = routes.index("try:", cypher_idx)
+        assert guard_idx < try_idx
+
+    def test_message_unique_ids(self, generated_project):
+        """BUG-008: Messages must use unique IDs, not array indices as keys."""
+        out, _ = generated_project
+        chat = (out / "frontend" / "components" / "ChatInterface.tsx").read_text()
+        assert "crypto.randomUUID()" in chat
+        assert "key={msg.id}" in chat
+
+    def test_session_storage_warning(self, generated_project):
+        """BUG-009: Storage failures must log a warning."""
+        out, _ = generated_project
+        chat = (out / "frontend" / "components" / "ChatInterface.tsx").read_text()
+        assert "console.warn" in chat
+
+    def test_dynamic_loading_fallback(self, generated_project):
+        """BUG-014: Dynamic ContextGraphView import must have loading state."""
+        out, _ = generated_project
+        page = (out / "frontend" / "app" / "page.tsx").read_text()
+        assert "loading:" in page
+
+    def test_eslint_in_dependencies(self, generated_project):
+        """BUG-017: ESLint must be in devDependencies."""
+        out, _ = generated_project
+        import json
+        pkg = json.loads((out / "frontend" / "package.json").read_text())
+        assert "eslint" in pkg.get("devDependencies", {})
+        assert "eslint-config-next" in pkg.get("devDependencies", {})
+
+    def test_dockerignore_generated(self, generated_project):
+        """BUG-018: .dockerignore must be generated."""
+        out, _ = generated_project
+        dockerignore = out / ".dockerignore"
+        assert dockerignore.exists()
+        content = dockerignore.read_text()
+        assert "node_modules" in content
+        assert ".venv" in content

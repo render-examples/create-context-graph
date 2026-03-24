@@ -158,6 +158,16 @@ class TestLoadAllDomains:
             assert ont.system_prompt
 
 
+    def test_all_domains_default_cypher_has_limit(self):
+        domains = list_available_domains()
+        for d in domains:
+            ont = load_domain(d["id"])
+            cypher = ont.visualization.default_cypher.strip().upper()
+            assert "LIMIT" in cypher, (
+                f"Domain '{d['id']}' default_cypher missing LIMIT clause"
+            )
+
+
 class TestGenerateCypherSchema:
     def test_generates_constraints(self, financial_ontology):
         schema = generate_cypher_schema(financial_ontology)

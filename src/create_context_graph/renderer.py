@@ -171,6 +171,11 @@ class ProjectRenderer:
             output_dir / "docker-compose.prod.yml",
             ctx,
         )
+        self._render_template(
+            "base/dockerignore.j2",
+            output_dir / ".dockerignore",
+            ctx,
+        )
 
     def _render_backend(self, backend_dir: Path, ctx: dict) -> None:
         """Render the FastAPI backend."""

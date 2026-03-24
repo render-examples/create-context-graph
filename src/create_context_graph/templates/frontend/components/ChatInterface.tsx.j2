@@ -20,6 +20,7 @@ interface ToolCall {
 }
 
 interface Message {
+  id: string;
   role: "user" | "assistant";
   content: string;
   toolCalls?: ToolCall[];
@@ -35,7 +36,8 @@ const SESSION_KEY = "ccg-session-id";
 function loadStoredMessages(): Message[] {
   try {
     const stored = sessionStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    if (!stored) return [];
+    return JSON.parse(stored).map((m: Message) => ({ ...m, id: m.id || crypto.randomUUID() }));
   } catch {
     return [];
   }
@@ -70,7 +72,7 @@ export function ChatInterface({ onGraphUpdate }: ChatInterfaceProps) {
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
       if (sessionId) sessionStorage.setItem(SESSION_KEY, sessionId);
-    } catch { /* storage full or unavailable */ }
+    } catch { console.warn("Failed to persist chat history to sessionStorage"); }
   }, [messages, sessionId]);
 
   // Throttle streaming text updates to ~50ms to avoid excessive ReactMarkdown re-renders
@@ -108,7 +110,7 @@ export function ChatInterface({ onGraphUpdate }: ChatInterfaceProps) {
     const messageText = text || input.trim();
     if (!messageText || loading) return;
 
-    const userMessage: Message = { role: "user", content: messageText };
+    const userMessage: Message = { id: crypto.randomUUID(), role: "user", content: messageText };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setLoading(true);
@@ -216,6 +218,7 @@ export function ChatInterface({ onGraphUpdate }: ChatInterfaceProps) {
                   setMessages((prev) => [
                     ...prev,
                     {
+                      id: crypto.randomUUID(),
                       role: "assistant",
                       content: data.response || fullText,
                       toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
@@ -256,7 +259,7 @@ export function ChatInterface({ onGraphUpdate }: ChatInterfaceProps) {
       }
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: `**Error:** ${errorMsg}` },
+        { id: crypto.randomUUID(), role: "assistant", content: `**Error:** ${errorMsg}` },
       ]);
       setStreamingContent("");
       setStreamingToolCalls([]);
@@ -321,8 +324,8 @@ export function ChatInterface({ onGraphUpdate }: ChatInterfaceProps) {
 
       {/* Messages */}
       <VStack flex={1} overflow="auto" px={4} py={2} gap={3} align="stretch">
-        {messages.map((msg, i) => (
-          <Box key={i}>
+        {messages.map((msg) => (
+          <Box key={msg.id}>
             {/* Completed tool call cards */}
             {msg.toolCalls && msg.toolCalls.length > 0 && (
               <ToolCallTimeline toolCalls={msg.toolCalls} />
@@ -432,7 +435,7 @@ function ToolCallTimeline({ toolCalls }: { toolCalls: ToolCall[] }) {
   return (
     <Timeline.Root size="sm" mb={2}>
       {toolCalls.map((tc, j) => (
-        <Timeline.Item key={j}>
+        <Timeline.Item key={`${tc.name}-${j}`}>
           <Timeline.Connector>
             <Timeline.Separator />
             <Timeline.Indicator

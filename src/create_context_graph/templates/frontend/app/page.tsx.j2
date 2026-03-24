@@ -1,13 +1,20 @@
 {% raw %}"use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Box, Flex, Heading, Text, Tabs, IconButton, HStack } from "@chakra-ui/react";
+import { Box, Flex, Heading, Text, Tabs, IconButton, HStack, Spinner } from "@chakra-ui/react";
 import { MessageSquare, Network, FileText } from "lucide-react";
 import dynamic from "next/dynamic";
 import { ChatInterface } from "@/components/ChatInterface";
 const ContextGraphView = dynamic(
   () => import("@/components/ContextGraphView").then((mod) => mod.ContextGraphView),
-  { ssr: false }
+  {
+    ssr: false,
+    loading: () => (
+      <Flex align="center" justify="center" h="100%" color="gray.400">
+        <Spinner size="lg" />
+      </Flex>
+    ),
+  }
 );
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { DecisionTracePanel } from "@/components/DecisionTracePanel";
