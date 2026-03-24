@@ -22,7 +22,7 @@ uvx create-context-graph my-app --domain healthcare --framework pydanticai --dem
 
 Create Context Graph walks you through an interactive wizard and generates a complete project:
 
-- **FastAPI backend** with an AI agent configured for your domain, powered by [neo4j-agent-memory](https://github.com/neo4j-labs/neo4j-agent-memory) for multi-turn conversations
+- **FastAPI backend** with an AI agent configured for your domain, powered by [neo4j-agent-memory](https://github.com/neo4j-labs/agent-memory) for multi-turn conversations
 - **Next.js + Chakra UI v3 frontend** with streaming chat (Server-Sent Events), real-time tool call visualization (Timeline with live spinners), interactive graph visualization (schema view, double-click expand, drag/zoom, property panel), entity detail panel, document browser, and decision trace viewer
 - **Neo4j schema** with domain-specific constraints, indexes, and GDS projections
 - **Rich demo data** — LLM-generated entities, relationships, professional documents (discharge summaries, trade confirmations, lab reports), and multi-step decision traces
@@ -255,7 +255,7 @@ Options:
 
 ## Context Graph Architecture
 
-Every generated app demonstrates the three-memory-type architecture from [neo4j-agent-memory](https://github.com/neo4j-labs/neo4j-agent-memory):
+Every generated app demonstrates the three-memory-type architecture from [neo4j-agent-memory](https://github.com/neo4j-labs/agent-memory):
 
 - **Short-term memory** — Conversation history and document content stored as messages
 - **Long-term memory** — Entity knowledge graph built on the POLE+O model (Person, Organization, Location, Event, Object)

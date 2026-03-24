@@ -83,7 +83,7 @@ const config: Config = {
           title: 'More',
           items: [
             {label: 'Neo4j Labs', href: 'https://neo4j.com/labs/'},
-            {label: 'neo4j-agent-memory', href: 'https://github.com/neo4j-labs/neo4j-agent-memory'},
+            {label: 'neo4j-agent-memory', href: 'https://github.com/neo4j-labs/agent-memory'},
           ],
         },
       ],

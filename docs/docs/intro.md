@@ -13,7 +13,7 @@ Given a domain (like healthcare, financial services, or wildlife management) and
 
 - **22 built-in domains** -- healthcare, financial services, real estate, manufacturing, scientific research, software engineering, and more. Each domain ships with a complete ontology, agent tools, demo scenarios, and fixture data.
 - **8 agent frameworks** -- PydanticAI, Claude Agent SDK, OpenAI Agents SDK, LangGraph, CrewAI, Strands, Google ADK, and Anthropic Tools. Pick the one you know, or try something new.
-- **Multi-turn conversations** -- every generated agent uses [neo4j-agent-memory](https://github.com/neo4j-labs/neo4j-agent-memory) for conversation persistence. Session history is stored in Neo4j and retrieved on each turn, so follow-up questions work naturally.
+- **Multi-turn conversations** -- every generated agent uses [neo4j-agent-memory](https://github.com/neo4j-labs/agent-memory) for conversation persistence. Session history is stored in Neo4j and retrieved on each turn, so follow-up questions work naturally.
 - **Graph-native AI agents** -- every generated agent comes with Cypher-powered tools for querying entities, relationships, and decision traces in Neo4j. Tool calls stream in real-time with live progress indicators.
 - **Streaming chat** -- responses stream token-by-token via Server-Sent Events. Tool calls appear as a live timeline with spinner indicators as each executes. The graph visualization updates incrementally after each tool completes, not just at the end.
 - **Interactive graph visualization** -- the frontend includes an NVL-powered graph explorer with entity detail panel (click any node to see all properties and connections), a document browser with template filtering, and a decision trace viewer.

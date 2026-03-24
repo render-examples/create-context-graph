@@ -195,7 +195,7 @@ Prepared for public release with Docusaurus documentation, Neo4j Labs compliance
   - **Reference:** CLI Options & Flags, Ontology YAML Schema, Generated Project Structure
   - **Explanation:** How Domain Ontologies Work, Why Context Graphs Need All Three Memory Types
 - **GitHub Pages deployment** via `.github/workflows/deploy-docs.yml` (triggers on `docs/` changes to main)
-- Site URL: `https://neo4j-labs.github.io/create-context-graph/`
+- Site URL: `https://create-context-graph.vercel.app/`
 
 #### Neo4j Labs compliance
 
