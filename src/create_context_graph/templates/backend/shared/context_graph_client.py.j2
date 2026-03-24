@@ -170,6 +170,17 @@ async def connect_neo4j() -> None:
         logger.warning("Failed to initialize MemoryClient: %s", e)
         _memory_client = None
 
+    # Ensure spacy model is available for entity extraction
+    try:
+        import spacy
+        try:
+            spacy.load("en_core_web_sm")
+        except OSError:
+            logger.info("Downloading spacy model en_core_web_sm...")
+            spacy.cli.download("en_core_web_sm")
+    except ImportError:
+        pass
+
 
 async def close_neo4j() -> None:
     """Close Neo4j connection and memory client."""
@@ -199,7 +210,7 @@ async def get_conversation_history(session_id: str, limit: int = 20) -> list[dic
     if _memory_client is None:
         return []
     try:
-        messages = await _memory_client.short_term.get_messages(
+        messages = await _memory_client.short_term.get_conversation(
             session_id=session_id,
             limit=limit,
         )
