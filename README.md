@@ -175,7 +175,7 @@ Select your preferred agent framework at project creation time:
 | **LangGraph** | Stateful graph-based agent workflow with `create_react_agent()` | Full streaming |
 | **CrewAI** | Multi-agent crew with role-based tools | Tool streaming |
 | **Strands (AWS)** | Tool-use agents with AWS Bedrock | Tool streaming |
-| **Google ADK** | Gemini agents with `FunctionTool` calling | Tool streaming |
+| **Google ADK** | Gemini agents with `FunctionTool` calling | Full streaming |
 | **Anthropic Tools** | Modular tool registry with Anthropic API agentic loop | Full streaming |
 
 All frameworks share the same FastAPI HTTP layer, Neo4j client, and frontend. Only the agent implementation differs. "Full streaming" means token-by-token text + real-time tool calls. "Tool streaming" means real-time tool calls with text delivered at the end.
@@ -218,9 +218,10 @@ my-app/
 │   └── fixtures.json              # Pre-generated sample data
 ├── .env                           # Neo4j + API key configuration
 ├── .env.example                   # Configuration template (tracked in git)
+├── .dockerignore                  # Docker build context exclusions
 ├── docker-compose.yml             # Local Neo4j instance (Docker mode only)
-├── Makefile                       # start, seed, reset, install, test, lint
-└── README.md                      # Domain-specific documentation
+├── Makefile                       # start, seed, reset, install, test, test-connection, lint
+└── README.md                      # Domain-specific documentation (with framework docs + troubleshooting)
 ```
 
 ## CLI Reference
@@ -272,8 +273,8 @@ uv venv && uv pip install -e ".[dev]"
 
 # Run tests (no Neo4j or API keys required)
 source .venv/bin/activate
-pytest tests/ -v               # Fast: 388 tests
-pytest tests/ -v --slow        # Full: 586 tests (includes 176-combo domain x framework matrix + 22 perf tests)
+pytest tests/ -v               # Fast: 409 tests
+pytest tests/ -v --slow        # Full: 607 tests (includes 176-combo domain x framework matrix + 22 perf tests)
 
 # Test a specific scaffold
 create-context-graph /tmp/test-app --domain software-engineering --framework pydanticai --demo-data

@@ -432,11 +432,73 @@ Based on comprehensive QA testing of all 176 domain-framework combinations.
 
 ---
 
+## Phase 9 — QA Hardening & DX Polish (v0.5.0)
+
+Comprehensive QA pass across all 176 domain/framework combinations. 15 bugs fixed, 3 false alarms identified, 21 new tests added (409 total).
+
+### Critical Fixes
+- **Settings `extra: "ignore"`** — Neo4j Aura `.env` files with extra variables (NEO4J_DATABASE, AURA_INSTANCEID) no longer cause ValidationError
+- **`is_connected()` state flag** — replaced broken sync `verify_connectivity()` on AsyncDriver with tracked `_connected` flag set during `connect_neo4j()`/`close_neo4j()`
+- **503 guards on all endpoints** — added `_require_neo4j()` guard to all 15 Neo4j-dependent routes (was only on `/chat` and `/chat/stream`); `/cypher` now returns 503 for connection errors, 400 for syntax errors
+
+### Async Safety
+- **Removed `nest_asyncio`** from Strands and CrewAI templates — replaced with `asyncio.to_thread()` + clean `asyncio.run()` in worker threads. Google ADK keeps `nest_asyncio` (needed for sync tools within async `run_async()`)
+
+### Conversation History
+- **Structured format** — replaced flat `"Previous conversation:\n"` string concatenation with `<conversation_history>[ROLE]\ncontent</conversation_history>` format in OpenAI Agents, Strands, CrewAI, and Google ADK
+- **ADK session leverage** — Google ADK skips history injection for existing sessions (ADK manages multi-turn internally), only injects persisted history for new sessions after server restart
+
+### Streaming
+- **Google ADK full streaming** — added `handle_message_stream()` that emits `text_delta` events from `runner.run_async()` events. Google ADK promoted from "tools only" to "full streaming" (6 of 8 frameworks now stream)
+
+### Frontend Fixes
+- **Unique message IDs** — `crypto.randomUUID()` for React keys instead of array indices
+- **Loading fallback** — `Spinner` component in dynamic `ContextGraphView` import
+- **Storage warning** — `console.warn()` on sessionStorage failures
+
+### Domain & Build Fixes
+- **Color collision resolution** — fixed 12 entity color collisions across 7 domains (entities sharing hex colors with base POLE+O types)
+- **LIMIT clause** — added `LIMIT 100` to software-engineering default Cypher query
+- **ESLint dependencies** — added `eslint` and `eslint-config-next` to frontend devDependencies
+- **`.dockerignore`** — new template excluding node_modules, .venv, .git, __pycache__ from Docker builds
+- **CrewAI Python 3.11+** — conditional `requires-python = ">=3.11"` in generated pyproject.toml
+
+### Developer Experience
+- **`make test-connection`** — Makefile target to validate Neo4j credentials
+- **README troubleshooting** — common issues with Neo4j connection, port conflicts, API keys (conditional on neo4j_type)
+- **Framework-specific README** — each generated README documents the chosen framework's architecture, streaming support, and required API keys
+
+### Tests added (21 new → 409 total)
+- `TestQABugFixes` — config extra ignore, connected flag, endpoint guards, cypher 503, message IDs, storage warning, loading fallback, ESLint deps, dockerignore
+- `TestDeferredBugFixes` — structured history format, ADK session reuse, ADK streaming, CrewAI Python version, strands deps
+- `test_no_color_collisions_with_base` — validates all 22 domains have unique entity colors
+- `test_all_domains_default_cypher_has_limit` — validates LIMIT clause in all domains
+
+### Files modified
+- `templates/backend/shared/config.py.j2` — `extra: "ignore"`
+- `templates/backend/shared/context_graph_client.py.j2` — `_connected` flag
+- `templates/backend/shared/routes.py.j2` — `_require_neo4j()` guard
+- `templates/backend/shared/pyproject.toml.j2` — conditional Python version
+- `templates/backend/agents/{strands,crewai,google_adk,openai_agents}/agent.py.j2` — async safety, history format, streaming
+- `templates/frontend/components/ChatInterface.tsx.j2` — message IDs, storage warning
+- `templates/frontend/app/page.tsx.j2` — loading fallback
+- `templates/frontend/package.json.j2` — ESLint deps
+- `templates/base/Makefile.j2` — `test-connection` target
+- `templates/base/README.md.j2` — troubleshooting, framework sections
+- `templates/base/dockerignore.j2` — new file
+- `src/create_context_graph/config.py` — remove nest-asyncio from deps
+- `src/create_context_graph/renderer.py` — register dockerignore template
+- `src/create_context_graph/domains/*.yaml` — color fixes (7 domains), LIMIT clause (1 domain)
+- `tests/test_generated_project.py` — 19 new tests
+- `tests/test_ontology.py` — 2 new tests
+
+---
+
 ## Summary
 
 | Phase | Description | Status | Tests |
 |-------|-------------|--------|-------|
-| 1 | Core CLI & Template Engine | **Complete** | 388 passing |
+| 1 | Core CLI & Template Engine | **Complete** | 409 passing |
 | 2 | Domain Expansion & Data Generation | **Complete** | (included above) |
 | 3 | Framework Templates & Frontend | **Complete** | (included above) |
 | 4 | SaaS Import & Custom Domains | **Complete** | (included above) |
@@ -446,3 +508,4 @@ Based on comprehensive QA testing of all 176 domain-framework combinations.
 | 6 | Memory Integration, Multi-Turn & DX | **Complete** | (included above) |
 | 7 | Hardening, Security & DX | **Complete** | (included above) |
 | 8 | Streaming Chat & Real-Time Tool Viz | **Complete** | (included above) |
+| 9 | QA Hardening & DX Polish | **Complete** | (included above) |

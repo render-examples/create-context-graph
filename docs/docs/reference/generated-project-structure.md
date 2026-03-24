@@ -14,6 +14,7 @@ my-app/
 ├── .env                              # Environment variables (Neo4j, API keys) — gitignored
 ├── .env.example                      # Configuration template with placeholder values
 ├── .gitignore                        # Git ignore rules
+├── .dockerignore                     # Docker build context exclusions
 ├── Makefile                          # Build, run, and seed commands
 ├── docker-compose.yml                # Neo4j container definition (Docker mode only)
 ├── README.md                         # Auto-generated project documentation
@@ -114,7 +115,7 @@ async def handle_message(
     """Returns {"response": str, "session_id": str, "graph_data": dict | None}"""
 ```
 
-For frameworks that support text streaming (PydanticAI, Anthropic Tools, Claude Agent SDK, OpenAI Agents, LangGraph), the agent also exports:
+For frameworks that support text streaming (PydanticAI, Anthropic Tools, Claude Agent SDK, OpenAI Agents, LangGraph, Google ADK), the agent also exports:
 
 ```python
 async def handle_message_stream(
@@ -266,6 +267,7 @@ Defines a Neo4j container with APOC and GDS plugins, mapped to ports 7474 (brows
 | `make neo4j-stop` | Stop neo4j-local (local mode only) |
 | `make neo4j-status` | Check neo4j-local status (local mode only) |
 | `make seed` | Apply schema and load all fixture data (entities, relationships, documents, traces) into Neo4j |
+| `make test-connection` | Validate Neo4j credentials and connectivity |
 | `make start` | Start both backend and frontend (uses `trap` for clean Ctrl+C shutdown) |
 | `make dev-backend` | Start only the FastAPI backend |
 | `make dev-frontend` | Start only the Next.js frontend |

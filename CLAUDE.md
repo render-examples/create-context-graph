@@ -6,7 +6,7 @@ Interactive CLI scaffolding tool that generates domain-specific context graph ap
 
 Given a domain (e.g., "healthcare", "wildlife-management") and an agent framework (e.g., PydanticAI, Claude Agent SDK), it generates a complete full-stack application: FastAPI backend, Next.js + Chakra UI v3 + NVL frontend, Neo4j schema, synthetic data, and a configured AI agent with domain-specific tools.
 
-**Status:** Phase 8 in progress (v0.5.0, current release v0.4.2). 22 domains, 8 agent frameworks, **streaming chat via Server-Sent Events** (token-by-token text + real-time tool call visualization with Timeline/Spinner/Collapsible), neo4j-agent-memory integration for multi-turn conversations, interactive NVL graph visualization (schema view, double-click expand, drag/zoom, property panel, agent-driven graph updates — now updated incrementally during streaming), LLM-generated demo data (80-90 entities, 25+ documents, 3-5 decision traces per domain), markdown rendering in chat, document browser with pagination, entity detail panel, 7 SaaS connectors, custom domain generation, Neo4j Aura .env import + neo4j-local support, Docusaurus documentation site, graceful Neo4j degradation with /health endpoint, Cypher injection prevention, enum identifier sanitization, configurable CORS/model/timeouts, --dry-run and --verbose CLI flags, constants module, WCAG accessibility improvements, chat timeout/cancel with AbortController, mobile-responsive layout, 388 passing tests.
+**Status:** Phase 9 complete (v0.5.0, current release v0.4.3). 22 domains, 8 agent frameworks, **streaming chat via Server-Sent Events** (token-by-token text in 6 frameworks + real-time tool call visualization with Timeline/Spinner/Collapsible), neo4j-agent-memory integration for multi-turn conversations, interactive NVL graph visualization (schema view, double-click expand, drag/zoom, property panel, agent-driven graph updates — now updated incrementally during streaming), LLM-generated demo data (80-90 entities, 25+ documents, 3-5 decision traces per domain), markdown rendering in chat, document browser with pagination, entity detail panel, 7 SaaS connectors, custom domain generation, Neo4j Aura .env import + neo4j-local support, Docusaurus documentation site, graceful Neo4j degradation with /health endpoint and 503 guards on all endpoints, Cypher injection prevention, enum identifier sanitization, configurable CORS/model/timeouts, --dry-run and --verbose CLI flags, constants module, WCAG accessibility improvements, chat timeout/cancel with AbortController, mobile-responsive layout, .dockerignore for Docker builds, `make test-connection` target, framework-specific README sections, troubleshooting guide, 409 passing tests.
 
 ## Quick Reference
 
@@ -151,15 +151,15 @@ my-app/
 ## Testing
 
 ```bash
-pytest tests/ -v                    # All 388 tests (586 with slow matrix)
+pytest tests/ -v                    # All 409 tests (607 with slow matrix)
 pytest tests/test_config.py         # Config model + framework alias tests (19)
-pytest tests/test_ontology.py       # Ontology loading + all 22 domains validate + enum sanitization (60)
+pytest tests/test_ontology.py       # Ontology loading + all 22 domains validate + enum sanitization + color collision checks (62)
 pytest tests/test_renderer.py       # Template rendering + all 8 frameworks + v0.3.0 features (52)
 pytest tests/test_generator.py      # Data generation pipeline (14)
 pytest tests/test_cli.py            # CLI integration + 8 domain/framework combos + neo4j types + validation (20)
 pytest tests/test_custom_domain.py  # Custom domain generation with mocked LLM (17)
 pytest tests/test_connectors.py     # SaaS connectors with mocked APIs (23)
-pytest tests/test_generated_project.py # Deep validation: Python/TS/Cypher syntax, memory, neo4j types, streaming (113)
+pytest tests/test_generated_project.py # Deep validation: Python/TS/Cypher syntax, memory, neo4j types, streaming, QA fixes (132)
 pytest tests/test_performance.py    # Timed generation tests (slow, 22 domains)
 ```
 

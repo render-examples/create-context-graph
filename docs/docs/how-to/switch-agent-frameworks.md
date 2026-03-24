@@ -17,7 +17,7 @@ Create Context Graph supports 8 agent frameworks. The framework choice only affe
 | **LangGraph** | `langgraph` | LangChain's graph-based agent runtime with `@tool` and `create_react_agent()` | Full |
 | **CrewAI** | `crewai` | Multi-agent framework with `Agent`, `Task`, and `Crew` abstractions | Tools only |
 | **Strands** | `strands` | AWS-native agent framework using Bedrock models with `@tool` decorators | Tools only |
-| **Google ADK** | `google-adk` | Google's Agent Development Kit with `FunctionTool` and Gemini models | Tools only |
+| **Google ADK** | `google-adk` | Google's Agent Development Kit with `FunctionTool` and Gemini models | Full |
 | **Anthropic Tools** | `anthropic-tools` | Modular agent framework with `@register_tool` registry and Anthropic API agentic loop | Full |
 
 **Streaming column:** "Full" means token-by-token text streaming + real-time tool call events. "Tools only" means tool call events stream in real-time, but the text response arrives all at once after the agent finishes. All frameworks use the same SSE (Server-Sent Events) protocol.
