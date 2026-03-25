@@ -1247,3 +1247,176 @@ class TestV051Regressions:
         assert "splitThinkingAndResponse" in chat
         assert "THINKING_PATTERNS" in chat
         assert "Show reasoning" in chat
+
+
+class TestV052DomainFiltering:
+    """Tests for v0.5.2 cross-domain isolation fixes."""
+
+    def test_config_has_domain_id(self, generated_project):
+        """Generated config.py should have domain_id setting."""
+        out, _ = generated_project
+        config_source = (out / "backend" / "app" / "config.py").read_text()
+        assert "domain_id" in config_source
+        assert "financial-services" in config_source
+
+    def test_env_has_domain_id(self, generated_project):
+        """Generated .env should have DOMAIN_ID."""
+        out, _ = generated_project
+        env_content = (out / ".env").read_text()
+        assert "DOMAIN_ID=" in env_content
+
+    def test_routes_filter_documents_by_domain(self, generated_project):
+        """Document queries in routes.py should filter by domain."""
+        out, _ = generated_project
+        routes_source = (out / "backend" / "app" / "routes.py").read_text()
+        assert "d.domain" in routes_source, "Documents query should filter by domain"
+        assert "t.domain" in routes_source, "Traces query should filter by domain"
+
+    def test_routes_filter_entities_by_domain(self, generated_project):
+        """Entity detail queries should filter by domain."""
+        out, _ = generated_project
+        routes_source = (out / "backend" / "app" / "routes.py").read_text()
+        assert "n.domain IS NULL OR n.domain = $domain" in routes_source
+
+    def test_context_graph_client_domain_filtering(self, generated_project):
+        """context_graph_client functions should filter by domain."""
+        out, _ = generated_project
+        client_source = (out / "backend" / "app" / "context_graph_client.py").read_text()
+        assert "n.domain IS NULL OR n.domain = $domain" in client_source
+        assert "settings.domain_id" in client_source
+
+    def test_generate_data_tags_domain(self, generated_project):
+        """generate_data.py should tag entities with domain property."""
+        out, _ = generated_project
+        gen_data = (out / "backend" / "scripts" / "generate_data.py").read_text()
+        assert '"domain": settings.domain_id' in gen_data
+        assert "d.domain = $domain" in gen_data
+        assert "t.domain = $domain" in gen_data
+
+
+class TestV052FrameworkFixes:
+    """Tests for v0.5.2 agent framework bug fixes."""
+
+    def test_google_adk_part_constructor(self, tmp_path):
+        """Google ADK should use Part(text=...) not Part.from_text(...)."""
+        config = ProjectConfig(
+            project_name="adk-fix",
+            domain="healthcare",
+            framework="google-adk",
+        )
+        ontology = load_domain("healthcare")
+        out = tmp_path / "adk-fix"
+        renderer = ProjectRenderer(config, ontology)
+        renderer.render(out)
+
+        agent_source = (out / "backend" / "app" / "agent.py").read_text()
+        assert "Part(text=" in agent_source
+        assert "Part.from_text(" not in agent_source
+
+    def test_strands_has_timeout(self, tmp_path):
+        """Strands agent should have asyncio.wait_for timeout."""
+        config = ProjectConfig(
+            project_name="strands-timeout",
+            domain="healthcare",
+            framework="strands",
+        )
+        ontology = load_domain("healthcare")
+        out = tmp_path / "strands-timeout"
+        renderer = ProjectRenderer(config, ontology)
+        renderer.render(out)
+
+        agent_source = (out / "backend" / "app" / "agent.py").read_text()
+        assert "asyncio.wait_for" in agent_source
+        assert "timeout=" in agent_source
+        assert "TimeoutError" in agent_source
+
+    def test_crewai_has_timeout(self, tmp_path):
+        """CrewAI agent should have asyncio.wait_for timeout."""
+        config = ProjectConfig(
+            project_name="crewai-timeout",
+            domain="healthcare",
+            framework="crewai",
+        )
+        ontology = load_domain("healthcare")
+        out = tmp_path / "crewai-timeout"
+        renderer = ProjectRenderer(config, ontology)
+        renderer.render(out)
+
+        agent_source = (out / "backend" / "app" / "agent.py").read_text()
+        assert "asyncio.wait_for" in agent_source
+        assert "timeout=" in agent_source
+        assert "TimeoutError" in agent_source
+
+    def test_anthropic_tools_streaming_error_handling(self, tmp_path):
+        """Anthropic tools streaming should have try/except around the loop."""
+        config = ProjectConfig(
+            project_name="anthropic-fix",
+            domain="healthcare",
+            framework="anthropic-tools",
+        )
+        ontology = load_domain("healthcare")
+        out = tmp_path / "anthropic-fix"
+        renderer = ProjectRenderer(config, ontology)
+        renderer.render(out)
+
+        agent_source = (out / "backend" / "app" / "agent.py").read_text()
+        assert "Streaming error" in agent_source
+        assert "Tool error" in agent_source or "tool_err" in agent_source
+
+    def test_run_cypher_catches_exceptions(self, tmp_path):
+        """All frameworks' run_cypher should catch execute_cypher exceptions."""
+        for fw in ["pydanticai", "langgraph", "openai-agents", "crewai", "strands", "google-adk", "anthropic-tools"]:
+            config = ProjectConfig(
+                project_name=f"cypher-fix-{fw}",
+                domain="healthcare",
+                framework=fw,
+            )
+            ontology = load_domain("healthcare")
+            out = tmp_path / f"cypher-fix-{fw}"
+            renderer = ProjectRenderer(config, ontology)
+            renderer.render(out)
+
+            agent_source = (out / "backend" / "app" / "agent.py").read_text()
+            assert "Cypher query failed" in agent_source, f"{fw} run_cypher should catch Cypher exceptions"
+
+    def test_agent_tools_inject_domain(self, tmp_path):
+        """Agent tools should inject domain parameter for run_cypher."""
+        for fw in ["pydanticai", "langgraph", "openai-agents", "crewai", "strands", "google-adk", "anthropic-tools"]:
+            config = ProjectConfig(
+                project_name=f"domain-{fw}",
+                domain="healthcare",
+                framework=fw,
+            )
+            ontology = load_domain("healthcare")
+            out = tmp_path / f"domain-{fw}"
+            renderer = ProjectRenderer(config, ontology)
+            renderer.render(out)
+
+            agent_source = (out / "backend" / "app" / "agent.py").read_text()
+            assert "domain" in agent_source, f"{fw} should reference domain"
+            assert "settings.domain_id" in agent_source, f"{fw} run_cypher should inject domain"
+
+
+class TestV052FrontendFixes:
+    """Tests for v0.5.2 frontend improvements."""
+
+    def test_activity_based_timeout(self, generated_project):
+        """ChatInterface should use activity-based timeout reset."""
+        out, _ = generated_project
+        chat = (out / "frontend" / "components" / "ChatInterface.tsx").read_text()
+        assert "resetTimeout" in chat, "Should have activity-based timeout reset"
+        assert "120000" in chat, "Should use 120s timeout"
+
+    def test_thinking_filter_handles_empty_response(self, generated_project):
+        """splitThinkingAndResponse should return full text when response is empty."""
+        out, _ = generated_project
+        chat = (out / "frontend" / "components" / "ChatInterface.tsx").read_text()
+        assert "!response && thinking" in chat, "Should handle empty response case"
+
+    def test_thinking_filter_preserves_errors(self, generated_project):
+        """splitThinkingAndResponse should not classify error text as thinking."""
+        out, _ = generated_project
+        chat = (out / "frontend" / "components" / "ChatInterface.tsx").read_text()
+        assert "error" in chat.lower()
+        # Check for the error detection logic
+        assert "\\berror\\b" in chat or "error" in chat

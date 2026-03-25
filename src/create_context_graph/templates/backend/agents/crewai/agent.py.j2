@@ -71,8 +71,12 @@ def run_cypher(query: str, parameters: str = "{}") -> str:
         params = json.loads(parameters) if parameters else {}
     except json.JSONDecodeError:
         return json.dumps({"error": "Invalid JSON parameters"})
-    result = _run_sync(execute_cypher(query, params, tool_name="run_cypher"))
-    return json.dumps(result, default=str)
+    params.setdefault("domain", settings.domain_id)
+    try:
+        result = _run_sync(execute_cypher(query, params, tool_name="run_cypher"))
+        return json.dumps(result, default=str)
+    except Exception as e:
+        return json.dumps({"error": f"Cypher query failed: {e}"})
 
 
 @tool
@@ -131,9 +135,19 @@ async def handle_message(message: str, session_id: str | None = None) -> dict:
 
     crew = Crew(agents=[agent], tasks=[task], verbose=False)
     _capture_loop()
-    result = await asyncio.to_thread(crew.kickoff)
+    try:
+        result = await asyncio.wait_for(
+            asyncio.to_thread(crew.kickoff),
+            timeout=90.0,
+        )
+        response_text = str(result)
+    except asyncio.TimeoutError:
+        response_text = "The request timed out after 90 seconds. Please try a simpler question or try again."
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("CrewAI agent error: %s", e, exc_info=True)
+        response_text = f"An error occurred: {e}"
 
-    response_text = str(result)
     await store_message(session_id, "assistant", response_text)
 
     return {

@@ -32,7 +32,13 @@ from app.context_graph_client import (
 
 SYSTEM_PROMPT = """{{ system_prompt }}
 
-IMPORTANT: You MUST use the available tools to query the knowledge graph before answering any question about the data. Never guess or make up information — always use tools to look up actual data from the graph. If a user asks a question, identify which tool(s) can help answer it and call them."""
+IMPORTANT: You MUST use the available tools to query the knowledge graph before answering any question about the data. Never guess or make up information — always use tools to look up actual data from the graph. If a user asks a question, identify which tool(s) can help answer it and call them.
+
+When writing Cypher queries with run_cypher:
+- Never combine ORDER BY with DISTINCT or aggregation in the same RETURN clause — use a WITH clause first
+- Always LIMIT results (default LIMIT 25) to avoid overwhelming responses
+- Use toLower() for case-insensitive matching
+- If a query fails, try a simpler approach rather than repeating the same pattern"""
 
 
 {% raw %}
@@ -77,8 +83,12 @@ async def run_cypher(ctx: RunContext[AgentDeps], query: str, parameters: str = "
         params = json.loads(parameters) if parameters else {}
     except json.JSONDecodeError:
         return json.dumps([{"error": "Invalid JSON parameters"}])
-    result = await execute_cypher(query, params, tool_name="run_cypher")
-    return json.dumps(result, default=str)
+    params.setdefault("domain", settings.domain_id)
+    try:
+        result = await execute_cypher(query, params, tool_name="run_cypher")
+        return json.dumps(result, default=str)
+    except Exception as e:
+        return json.dumps([{"error": f"Cypher query failed: {e}"}])
 
 
 @agent.tool

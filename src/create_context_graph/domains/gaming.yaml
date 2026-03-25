@@ -366,7 +366,7 @@ demo_scenarios:
   - name: Game Economy
     prompts:
       - "What are the most traded legendary items this week?"
-      - "Show me the gold flow for guild Iron Wolves"
+      - "Show me the gold flow for guild Iron Brotherhood"
       - "Which quests generate the most gold per hour?"
 
   - name: Content & Balance

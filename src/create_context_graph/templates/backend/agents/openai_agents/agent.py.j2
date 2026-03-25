@@ -45,8 +45,12 @@ async def run_cypher(query: str, parameters: str = "{}") -> str:
         params = json.loads(parameters) if parameters else {}
     except json.JSONDecodeError:
         return json.dumps({"error": "Invalid JSON parameters"})
-    result = await execute_cypher(query, params, tool_name="run_cypher")
-    return json.dumps(result, default=str)
+    params.setdefault("domain", settings.domain_id)
+    try:
+        result = await execute_cypher(query, params, tool_name="run_cypher")
+        return json.dumps(result, default=str)
+    except Exception as e:
+        return json.dumps({"error": f"Cypher query failed: {e}"})
 
 
 @function_tool

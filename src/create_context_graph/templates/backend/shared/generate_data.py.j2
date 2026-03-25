@@ -34,10 +34,11 @@ async def load_fixture_data(data: dict):
     entities = data.get("entities", {})
     for label, items in entities.items():
         for item in items:
-            props = ", ".join(f"{k}: ${k}" for k in item.keys())
-            cypher = f"MERGE (n:{label} {{{props}}})"
+            enriched = {**item, "domain": settings.domain_id}
+            props = ", ".join(f"{k}: ${k}" for k in enriched.keys())
+            cypher = f"MERGE (n:{label} {{name: $name}}) SET {', '.join(f'n.{k} = ${k}' for k in enriched.keys())}"
             try:
-                await execute_cypher(cypher, item)
+                await execute_cypher(cypher, enriched)
             except Exception as e:
                 print(f"  Warning creating {label}: {e}")
         print(f"  Created {len(items)} {label} nodes")
@@ -72,7 +73,8 @@ async def load_documents(data: dict):
         MERGE (d:Document {title: $title})
         SET d.content = $content,
             d.template_id = $template_id,
-            d.template_name = $template_name
+            d.template_name = $template_name,
+            d.domain = $domain
         """
         try:
             await execute_cypher(cypher, {
@@ -80,6 +82,7 @@ async def load_documents(data: dict):
                 "content": doc.get("content", ""),
                 "template_id": doc.get("template_id", ""),
                 "template_name": doc.get("template_name", ""),
+                "domain": settings.domain_id,
             })
         except Exception as e:
             print(f"  Warning creating document: {e}")
@@ -89,16 +92,17 @@ async def load_documents(data: dict):
     # Link documents to mentioned entities
     try:
         link_cypher = """
-        MATCH (d:Document)
+        MATCH (d:Document) WHERE d.domain = $domain
         MATCH (e) WHERE e.name IS NOT NULL
           AND NOT 'Document' IN labels(e)
           AND NOT 'DecisionTrace' IN labels(e)
           AND NOT 'TraceStep' IN labels(e)
+          AND (e.domain IS NULL OR e.domain = $domain)
           AND d.content CONTAINS e.name
         MERGE (d)-[:MENTIONS]->(e)
         RETURN count(*) AS links_created
         """
-        result = await execute_cypher(link_cypher)
+        result = await execute_cypher(link_cypher, {"domain": settings.domain_id})
         link_count = result[0]["links_created"] if result else 0
         print(f"  Created {link_count} MENTIONS relationships")
     except Exception as e:
@@ -116,11 +120,12 @@ async def load_decision_traces(data: dict):
         # Create trace node
         try:
             await execute_cypher(
-                "MERGE (t:DecisionTrace {id: $id}) SET t.task = $task, t.outcome = $outcome",
+                "MERGE (t:DecisionTrace {id: $id}) SET t.task = $task, t.outcome = $outcome, t.domain = $domain",
                 {
                     "id": trace.get("id", ""),
                     "task": trace.get("task", ""),
                     "outcome": trace.get("outcome", ""),
+                    "domain": settings.domain_id,
                 },
             )
         except Exception as e:

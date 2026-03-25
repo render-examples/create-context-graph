@@ -294,37 +294,62 @@ async def execute_cypher(
 
 async def search_entities(query: str, label: str | None = None, limit: int = 20) -> list[dict]:
     """Full-text search across entities."""
+    from app.config import settings
     cypher = """
     MATCH (n)
     WHERE ($label IS NULL OR $label IN labels(n))
+      AND (n.domain IS NULL OR n.domain = $domain)
       AND (toLower(n.name) CONTAINS toLower($query)
            OR toLower(coalesce(n.description, '')) CONTAINS toLower($query))
     OPTIONAL MATCH (n)-[r]-(related)
+    WHERE related.domain IS NULL OR related.domain = $domain
     RETURN n, type(r) AS rel_type, labels(related) AS related_labels,
            related.name AS related_name
     LIMIT $limit
     """
-    return await execute_cypher(cypher, {"query": query, "label": label, "limit": limit})
+    return await execute_cypher(cypher, {"query": query, "label": label, "limit": limit, "domain": settings.domain_id})
 
 
 async def get_entity_graph(entity_name: str, depth: int = 2) -> dict:
     """Get the subgraph around an entity."""
+    from app.config import settings
     cypher = """
     MATCH (n)
     WHERE toLower(n.name) = toLower($name)
+      AND (n.domain IS NULL OR n.domain = $domain)
     OPTIONAL MATCH path = (n)-[*1..2]-(connected)
+    WHERE connected.domain IS NULL OR connected.domain = $domain
     RETURN n, collect(DISTINCT connected) AS connected_nodes
     """
-    results = await execute_cypher(cypher, {"name": entity_name})
+    results = await execute_cypher(cypher, {"name": entity_name, "domain": settings.domain_id})
     if results:
         return results[0]
     return {"nodes": [], "relationships": []}
 
 
 async def get_schema() -> dict:
-    """Get the graph database schema."""
-    labels_result = await execute_cypher("CALL db.labels()")
-    rel_types_result = await execute_cypher("CALL db.relationshipTypes()")
+    """Get the graph database schema, scoped to the current domain."""
+    from app.config import settings
+    # Get labels that actually exist in domain data
+    labels_result = await execute_cypher(
+        """
+        MATCH (n) WHERE n.domain IS NULL OR n.domain = $domain
+        WITH DISTINCT labels(n) AS ls UNWIND ls AS l
+        RETURN DISTINCT l AS label ORDER BY label
+        """,
+        {"domain": settings.domain_id},
+        collect=False,
+    )
+    rel_types_result = await execute_cypher(
+        """
+        MATCH (a)-[r]->(b)
+        WHERE (a.domain IS NULL OR a.domain = $domain)
+          AND (b.domain IS NULL OR b.domain = $domain)
+        RETURN DISTINCT type(r) AS relationshipType ORDER BY relationshipType
+        """,
+        {"domain": settings.domain_id},
+        collect=False,
+    )
     return {
         "labels": [r["label"] for r in labels_result],
         "relationship_types": [r["relationshipType"] for r in rel_types_result],
@@ -334,16 +359,64 @@ async def get_schema() -> dict:
 async def get_schema_visualization() -> dict:
     """Get the graph schema as nodes and relationships for visualization.
 
-    Uses db.schema.visualization() which returns label nodes and
-    relationship-type edges between them.
+    Uses db.schema.visualization() filtered to only labels that exist
+    in the current domain's data.
     """
+    from app.config import settings
     try:
         results = await execute_cypher(
             "CALL db.schema.visualization() YIELD nodes, relationships RETURN nodes, relationships",
             collect=False,
         )
         if results:
-            return results[0]
+            raw = results[0]
+            # Get labels that exist in domain data to filter schema
+            domain_labels_result = await execute_cypher(
+                """
+                MATCH (n) WHERE n.domain IS NULL OR n.domain = $domain
+                WITH DISTINCT labels(n) AS ls UNWIND ls AS l
+                RETURN collect(DISTINCT l) AS domain_labels
+                """,
+                {"domain": settings.domain_id},
+                collect=False,
+            )
+            domain_labels = set(domain_labels_result[0]["domain_labels"]) if domain_labels_result else set()
+            # Also include infrastructure labels
+            domain_labels |= {"Document", "DecisionTrace", "TraceStep"}
+
+            # Filter schema nodes to only domain-relevant labels
+            filtered_nodes = []
+            for node in raw.get("nodes", []):
+                node_labels = set()
+                if isinstance(node, dict):
+                    node_labels = set(node.get("labels", []))
+                elif hasattr(node, "labels"):
+                    node_labels = set(node.labels)
+                if node_labels & domain_labels:
+                    filtered_nodes.append(node)
+
+            # Filter relationships to only those between domain labels
+            filtered_rels = []
+            for rel in raw.get("relationships", []):
+                start_id = None
+                end_id = None
+                if isinstance(rel, dict):
+                    start_id = rel.get("startNodeElementId")
+                    end_id = rel.get("endNodeElementId")
+                elif hasattr(rel, "start_node"):
+                    start_id = rel.start_node.element_id
+                    end_id = rel.end_node.element_id
+                # Keep relationship if both endpoints are in filtered nodes
+                node_ids = set()
+                for n in filtered_nodes:
+                    if isinstance(n, dict):
+                        node_ids.add(n.get("elementId"))
+                    elif hasattr(n, "element_id"):
+                        node_ids.add(n.element_id)
+                if start_id in node_ids and end_id in node_ids:
+                    filtered_rels.append(rel)
+
+            return {"nodes": filtered_nodes, "relationships": filtered_rels}
     except Exception:
         pass
     # Fallback: return basic label/rel lists
@@ -352,13 +425,15 @@ async def get_schema_visualization() -> dict:
 
 async def expand_node(element_id: str) -> dict:
     """Get immediate neighbors of a node for graph expansion."""
+    from app.config import settings
     cypher = """
     MATCH (n) WHERE elementId(n) = $elementId
     OPTIONAL MATCH (n)-[r]-(m)
+    WHERE m.domain IS NULL OR m.domain = $domain
     RETURN collect(DISTINCT n) + collect(DISTINCT m) AS nodes,
            collect(DISTINCT r) AS relationships
     """
-    results = await execute_cypher(cypher, {"elementId": element_id}, collect=False)
+    results = await execute_cypher(cypher, {"elementId": element_id, "domain": settings.domain_id}, collect=False)
     if results:
         return results[0]
     return {"nodes": [], "relationships": []}

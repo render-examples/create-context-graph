@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 
 from app.agent import handle_message
+from app.config import settings
 from app.context_graph_client import (
     execute_cypher, search_entities, get_entity_graph, get_schema,
     get_schema_visualization, expand_node, get_collector, is_connected,
@@ -117,8 +118,13 @@ async def chat_stream(request: ChatRequest):
                 collector.emit_text_delta(response_text)
                 collector.emit_done(response_text, session_id)
         except Exception as e:
-            event_queue.put_nowait({"event": "error", "data": {"detail": str(e)}})
+            try:
+                event_queue.put_nowait({"event": "error", "data": {"detail": str(e)}})
+            except Exception:
+                pass
         finally:
+            # Small delay to ensure events are consumed before clearing
+            await asyncio.sleep(0.1)
             collector.clear_event_queue()
 
     async def event_generator():
@@ -202,7 +208,9 @@ async def cypher(request: CypherRequest):
     """Execute a Cypher query."""
     _require_neo4j()
     try:
-        results = await execute_cypher(request.query, request.parameters)
+        params = dict(request.parameters or {})
+        params.setdefault("domain", settings.domain_id)
+        results = await execute_cypher(request.query, params)
         return {"results": results}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -239,6 +247,7 @@ async def list_documents(template_id: str | None = None, skip: int = 0, limit: i
     if template_id:
         cypher = """
         MATCH (d:Document {template_id: $template_id})
+        WHERE d.domain IS NULL OR d.domain = $domain
         OPTIONAL MATCH (d)-[:MENTIONS]->(e)
         RETURN d.title AS title, d.template_id AS template_id,
                d.template_name AS template_name,
@@ -247,10 +256,11 @@ async def list_documents(template_id: str | None = None, skip: int = 0, limit: i
         ORDER BY d.title
         SKIP $skip LIMIT $limit
         """
-        results = await execute_cypher(cypher, {"template_id": template_id, "skip": skip, "limit": limit})
+        results = await execute_cypher(cypher, {"template_id": template_id, "skip": skip, "limit": limit, "domain": settings.domain_id})
     else:
         cypher = """
         MATCH (d:Document)
+        WHERE d.domain IS NULL OR d.domain = $domain
         OPTIONAL MATCH (d)-[:MENTIONS]->(e)
         RETURN d.title AS title, d.template_id AS template_id,
                d.template_name AS template_name,
@@ -259,7 +269,7 @@ async def list_documents(template_id: str | None = None, skip: int = 0, limit: i
         ORDER BY d.title
         SKIP $skip LIMIT $limit
         """
-        results = await execute_cypher(cypher, {"skip": skip, "limit": limit})
+        results = await execute_cypher(cypher, {"skip": skip, "limit": limit, "domain": settings.domain_id})
     return {"documents": results}
 
 
@@ -269,11 +279,12 @@ async def get_document(title: str):
     _require_neo4j()
     cypher = """
     MATCH (d:Document {title: $title})
+    WHERE d.domain IS NULL OR d.domain = $domain
     OPTIONAL MATCH (d)-[:MENTIONS]->(e)
     RETURN d {.title, .content, .template_id, .template_name} AS document,
            collect(DISTINCT {name: e.name, labels: labels(e)}) AS mentioned_entities
     """
-    results = await execute_cypher(cypher, {"title": title})
+    results = await execute_cypher(cypher, {"title": title, "domain": settings.domain_id})
     if not results:
         raise HTTPException(status_code=404, detail="Document not found")
     return results[0]
@@ -285,6 +296,7 @@ async def list_traces():
     _require_neo4j()
     cypher = """
     MATCH (t:DecisionTrace)
+    WHERE t.domain IS NULL OR t.domain = $domain
     OPTIONAL MATCH (t)-[:HAS_STEP]->(s:TraceStep)
     WITH t, s ORDER BY s.step_number
     RETURN t.id AS id, t.task AS task, t.outcome AS outcome,
@@ -295,7 +307,7 @@ async def list_traces():
                observation: s.observation
            } END) AS steps
     """
-    results = await execute_cypher(cypher)
+    results = await execute_cypher(cypher, {"domain": settings.domain_id})
     return {"traces": results}
 
 
@@ -305,8 +317,10 @@ async def get_entity_detail(name: str):
     _require_neo4j()
     cypher = """
     MATCH (n) WHERE toLower(n.name) = toLower($name)
+      AND (n.domain IS NULL OR n.domain = $domain)
     OPTIONAL MATCH (n)-[r]-(connected)
     WHERE connected.name IS NOT NULL
+      AND (connected.domain IS NULL OR connected.domain = $domain)
     RETURN n {.*, _labels: labels(n)} AS entity,
            collect(DISTINCT {
                name: connected.name,
@@ -315,7 +329,7 @@ async def get_entity_detail(name: str):
                direction: CASE WHEN startNode(r) = n THEN 'outgoing' ELSE 'incoming' END
            }) AS connections
     """
-    results = await execute_cypher(cypher, {"name": name})
+    results = await execute_cypher(cypher, {"name": name, "domain": settings.domain_id})
     if not results:
         raise HTTPException(status_code=404, detail="Entity not found")
     return results[0]
