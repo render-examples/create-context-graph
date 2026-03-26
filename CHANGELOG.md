@@ -1,6 +1,83 @@
 # Changelog
 
-## v0.4.0 — Hardening, Security & DX
+## v0.5.2 — Agent Framework Refinements (2026-03-26)
+
+- Improved Anthropic Tools and Claude Agent SDK agent templates
+- Enhanced `context_graph_client` event handling and error recovery
+- ChatInterface component improvements
+- Better error handling in API routes
+- `generate_data.py` improvements for data quality
+- 74 new ontology validation tests
+
+## v0.5.1 — UX Improvements & Bug Fixes (2026-03-25)
+
+### Bug Fixes
+- SSR hydration fix in frontend components
+- PydanticAI tool serialization fix — agent tools now return JSON string types correctly
+- Google ADK hyphenated domain name sanitization
+- HuggingFace warning suppression in agent templates
+
+### Improvements
+- Retry button on chat errors
+- Agent thinking text collapsible filter — reasoning steps render in a collapsible "Show reasoning" section
+- Strands `max_tokens` configuration support
+- Cypher query validation tests across all 22 domains
+
+## v0.5.0 — Data Quality & Domain Completeness (2026-03-24)
+
+### New Features
+- **22 complete domain ontologies** with pre-generated LLM fixture data shipped for all domains
+- **Domain-specific static name pools** — 200+ realistic names across 50+ entity labels (medical diagnoses, financial instruments, software repos, etc.)
+- Label-aware ID prefixes (`PAT-` for Patient, `ACT-` for Account, etc.)
+- 12+ domain-specific property pools (currency codes, ticker symbols, drug classes, medical specialties, severities)
+- `domain` property on all ingested entities for cross-domain isolation when sharing a Neo4j instance
+- Structured document templates for static fallback data generation
+
+### Bug Fixes
+- Fixed missing SSE event messages in chat streaming
+- Float value clamping for confidence/rating/efficiency fields
+
+### Testing
+- 510 passing tests (145 new), up from 365
+
+## v0.4.6 — Conversation Fetching Fix (2026-03-24)
+
+- Fixed conversation history fetching in `context_graph_client` for multi-turn sessions
+
+## v0.4.5 — Framework & Build Fixes (2026-03-24)
+
+- Fixed `pyproject.toml` build configuration bug
+- Strands framework default changed from Bedrock to AnthropicModel
+- Agent template improvements across multiple frameworks
+- Domain YAML fixes for gaming, genai-llm-ops, healthcare, personal-knowledge, product-management, retail-ecommerce, software-engineering, and trip-planning
+
+## v0.4.4 — Strands Model Default (2026-03-24)
+
+- Changed Strands agent framework default from AWS Bedrock to Anthropic native model (`AnthropicModel`)
+
+## v0.4.3 — API Keys & Docker Support (2026-03-23)
+
+- Fixed API key handling and validation across agent frameworks
+- Added `Dockerfile.backend` template for Docker builds
+- Makefile improvements for containerized deployments
+
+## v0.4.2 — E2E Testing & Bug Fixes (2026-03-23)
+
+- Bug fixes across agent templates
+- Playwright e2e test scaffolding for generated projects (`app.spec.ts`, `playwright.config.ts`)
+- Improved e2e smoke testing infrastructure
+
+## v0.4.1 — Streaming & E2E Infrastructure (2026-03-23)
+
+- **Server-Sent Events (SSE) streaming** for real-time chat responses and tool call visualization
+- `POST /chat/stream` endpoint with `asyncio.Queue`-based event streaming
+- Token-by-token text streaming for PydanticAI, Anthropic Tools, Claude Agent SDK, OpenAI Agents, LangGraph
+- Real-time tool call events with Timeline/Spinner/Collapsible UI components
+- Text delta batching (~50ms) to optimize React re-renders
+- E2E smoke testing infrastructure (`scripts/e2e_smoke_test.py`)
+- Documentation updates
+
+## v0.4.0 — Hardening, Security & DX (2026-03-23)
 
 ### Bug Fixes
 - **Critical:** Enum identifier sanitization — special characters (`A+`, `A-`, `3d_model`) in domain ontology enum values now generate valid Python identifiers with value aliases
@@ -36,15 +113,44 @@
 - New: v0.4.0 feature validation (health endpoint, constants, graceful degradation, input validation, CORS, pagination)
 - New: CLI validation and flag tests
 
-## v0.3.0 — Memory Integration, Multi-Turn & DX
+## v0.3.0 — Memory Integration, Multi-Turn & Graph Visualization (2026-03-23)
 
 - neo4j-agent-memory integration for multi-turn conversations
 - Interactive NVL graph visualization (schema view, double-click expand, drag/zoom, property panel)
 - LLM-generated demo data (80-90 entities, 25+ documents, 3-5 decision traces per domain)
 - Markdown rendering in chat with tool call visualization
 - Document browser and entity detail panel
-- 7 SaaS connectors
-- Custom domain generation
-- Neo4j Aura .env import + neo4j-local support
-- Docusaurus documentation site
+- Improved graph visualization and frontend styling
+- Docusaurus documentation site setup and deployment
+- Improved domain fixture data quality
 - 314 passing tests
+
+## v0.2.0 — Connectors & Custom Domains (2026-03-22)
+
+### New Features
+- **7 SaaS data connectors** — GitHub, Notion, Jira, Slack, Gmail, Google Calendar, Salesforce
+- Each connector implements `BaseConnector` ABC with `authenticate()`, `fetch()`, and `get_credential_prompts()`
+- Gmail/Google Calendar prefer `gws` CLI with Python OAuth2 fallback
+- **Custom domain generation** — generate complete domain ontology YAMLs from natural language descriptions using LLM (Anthropic/OpenAI)
+- Custom domains saved to `~/.create-context-graph/custom-domains/` for reuse
+- Neo4j Aura `.env` import and `neo4j-local` support in wizard
+- Documentation site (Docusaurus) with deployment configuration
+
+## v0.1.1 — Initial Bug Fixes (2026-03-22)
+
+- Bug fixes for CLI and template rendering
+- Test improvements and expanded coverage
+- Added `.gitignore` to generated projects
+
+## v0.1.0 — Initial Release (2026-03-22)
+
+- Interactive CLI scaffolding tool (`create-context-graph`) invoked via `uvx` or `npx`
+- 7-step interactive wizard with Questionary prompts
+- **8 agent frameworks:** PydanticAI, Claude Agent SDK, OpenAI Agents SDK, LangGraph, CrewAI, Strands, Google ADK, Anthropic Tools
+- Domain ontology system with YAML definitions and two-layer inheritance (`_base.yaml`)
+- Jinja2 template engine generating full-stack projects (FastAPI backend, Next.js + Chakra UI v3 frontend)
+- Neo4j schema generation (constraints + GDS projections)
+- Static and LLM-powered synthetic data generation pipeline
+- Neo4j data ingestion via `neo4j-agent-memory` or direct driver fallback
+- Domain-specific agent tools with Cypher queries
+- NVL graph visualization component
