@@ -100,7 +100,7 @@ class TestScaffoldGeneration:
             "--output-dir", str(out),
         ])
         assert result.exit_code == 1
-        assert "already exists" in result.output
+        assert "not empty" in result.output
 
 
 class TestNeo4jAuraEnv:
