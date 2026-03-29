@@ -13,7 +13,7 @@ Complete reference for the `create-context-graph` command-line interface.
 create-context-graph [PROJECT_NAME] [OPTIONS]
 ```
 
-`PROJECT_NAME` is optional. If omitted (and required options are not provided), the interactive wizard launches and prompts for it.
+`PROJECT_NAME` is optional. If omitted but `--domain` and `--framework` are provided, a slug is auto-generated (e.g., `healthcare-pydanticai-app`). If neither project name nor required flags are provided, the interactive wizard launches.
 
 ## Options
 
@@ -46,8 +46,8 @@ create-context-graph [PROJECT_NAME] [OPTIONS]
 
 The CLI operates in two modes:
 
-- **Interactive mode:** If `PROJECT_NAME`, `--domain`, or `--framework` is missing, the 7-step interactive wizard launches. The wizard uses [Questionary](https://questionary.readthedocs.io/) prompts to collect all configuration.
-- **Non-interactive mode:** If `PROJECT_NAME`, `--domain` (or `--custom-domain`), and `--framework` are all provided, the wizard is skipped entirely. This mode is suitable for CI/CD pipelines and scripting.
+- **Interactive mode:** If `--domain` or `--framework` is missing, the 7-step interactive wizard launches. The wizard uses [Questionary](https://questionary.readthedocs.io/) prompts to collect all configuration.
+- **Non-interactive mode:** If `--domain` (or `--custom-domain`) and `--framework` are both provided, the wizard is skipped entirely. `PROJECT_NAME` is optional — if omitted, a slug is auto-generated from the domain and framework (e.g., `healthcare-pydanticai-app`). This mode is suitable for CI/CD pipelines and scripting.
 
 ## Examples
 

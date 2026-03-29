@@ -71,6 +71,30 @@ class TestGenerateFixtureData:
         assert "title" in doc
         assert "content" in doc
 
+    def test_static_document_content_uses_markdown(self, tmp_path):
+        """Static-generated document content should use Markdown headings."""
+        ontology = load_domain("healthcare")
+        output = tmp_path / "fixtures.json"
+        data = generate_fixture_data(ontology, output)
+
+        for doc in data.get("documents", []):
+            content = doc.get("content", "")
+            assert "===" not in content, f"Document should not use RST === separators: {doc['title']}"
+            assert "## " in content, f"Static document should use markdown ## headings: {doc['title']}"
+
+    def test_static_document_titles_reference_entities(self, tmp_path):
+        """Static-generated document titles should reference primary entities."""
+        ontology = load_domain("healthcare")
+        output = tmp_path / "fixtures.json"
+        data = generate_fixture_data(ontology, output)
+
+        documents = data.get("documents", [])
+        # At least some titles should reference entities (colon separator)
+        entity_titles = [d for d in documents if ": " in d.get("title", "")]
+        assert len(entity_titles) > 0, (
+            f"Expected entity-derived titles with ': ', got: {[d['title'] for d in documents[:3]]}"
+        )
+
     def test_fixture_has_traces(self, tmp_path):
         ontology = load_domain("financial-services")
         output = tmp_path / "fixtures.json"
@@ -175,6 +199,20 @@ class TestShippedFixtureQuality:
             assert len(content) >= 100, (
                 f"Document '{doc.get('title', '?')}' too short: {len(content)} chars"
             )
+
+    @pytest.mark.parametrize("fixture_data", _all_fixture_domain_ids(), indirect=True)
+    def test_document_titles_not_just_sequential_numbers(self, fixture_data):
+        """Document titles should reference entities, not just be 'Template #N'."""
+        documents = fixture_data.get("documents", [])
+        if not documents:
+            pytest.skip("No documents generated")
+        # Titles should NOT be just "{template} #N" — they should include entity names
+        # LLM fixtures use " - " separator, static fallback uses ": "
+        sequential_only = [d for d in documents if d.get("title", "").endswith((" #1", " #2", " #3", " #4", " #5"))]
+        assert len(sequential_only) < len(documents), (
+            f"Most document titles should reference entities, not just sequential numbers: "
+            f"{[d['title'] for d in documents[:5]]}"
+        )
 
     @pytest.mark.parametrize("fixture_data", _all_fixture_domain_ids(), indirect=True)
     def test_traces_no_template_variables(self, fixture_data):

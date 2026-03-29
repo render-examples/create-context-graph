@@ -195,7 +195,7 @@ export const SECTION_COPY = {
 export const TRUST_STATS = [
   { label: "Domains", value: 22 },
   { label: "Agent Frameworks", value: 8 },
-  { label: "Passing Tests", value: 545 },
+  { label: "Passing Tests", value: 602 },
 ];
 
 // --- How It Works steps ---

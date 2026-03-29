@@ -48,7 +48,7 @@ jobs:
         run: uv run ruff check src/ tests/
 
   matrix:
-    name: Domain x Framework Matrix
+    name: Full Suite + Domain x Framework Matrix
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
@@ -64,8 +64,8 @@ jobs:
       - name: Install dependencies
         run: uv venv && uv pip install -e ".[dev]"
 
-      - name: Run matrix tests (all 176 domain x framework combos)
-        run: uv run pytest tests/test_matrix.py -v --tb=short --slow
+      - name: Run full test suite with slow tests (matrix + performance)
+        run: uv run pytest tests/ -v --tb=short --slow
 
   smoke-test:
     name: E2E Smoke Test (${{ matrix.test.framework }})

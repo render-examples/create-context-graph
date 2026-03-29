@@ -12,6 +12,8 @@ import {
   Flex,
 } from "@chakra-ui/react";
 import { FileText, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { API_BASE } from "@/lib/config";
 
 const PAGE_SIZE = 20;
@@ -161,11 +163,13 @@ export function DocumentBrowser() {
           )}
           <Box
             fontSize="sm"
-            whiteSpace="pre-wrap"
             lineHeight="tall"
             color="gray.700"
+            className="markdown-content"
           >
-            {selectedDoc.document.content}
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {selectedDoc.document.content}
+            </ReactMarkdown>
           </Box>
         </Box>
       ) : (

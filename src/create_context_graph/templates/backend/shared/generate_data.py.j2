@@ -35,8 +35,8 @@ async def load_fixture_data(data: dict):
     for label, items in entities.items():
         for item in items:
             enriched = {**item, "domain": settings.domain_id}
-            props = ", ".join(f"{k}: ${k}" for k in enriched.keys())
-            cypher = f"MERGE (n:{label} {{name: $name}}) SET {', '.join(f'n.{k} = ${k}' for k in enriched.keys())}"
+            set_clause = ", ".join(f"n.{k} = ${k}" for k in enriched.keys())
+            cypher = f"MERGE (n:{label} {{name: $name}}) ON CREATE SET {set_clause} ON MATCH SET {set_clause}"
             try:
                 await execute_cypher(cypher, enriched)
             except Exception as e:

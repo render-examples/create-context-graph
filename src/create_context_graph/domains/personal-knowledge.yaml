@@ -426,6 +426,30 @@ agent_tools:
         type: string
         description: Starting item name to find connections from
 
+  - name: list_notes
+    description: "List note records with optional limit"
+    cypher: |
+      MATCH (n:Note)
+      RETURN n
+      ORDER BY n.title
+      LIMIT toInteger($limit)
+    parameters:
+      - name: limit
+        type: string
+        description: "Maximum number of results to return (default: 10)"
+
+  - name: get_note_by_id
+    description: "Get a specific note by ID with all connections"
+    cypher: |
+      MATCH (n:Note {note_id: $id})
+      OPTIONAL MATCH (n)-[r]-(related)
+      RETURN n, type(r) AS relationship, labels(related) AS related_labels, related.name AS related_name
+      LIMIT 50
+    parameters:
+      - name: id
+        type: string
+        description: "The note_id to look up"
+
 system_prompt: |
   You are a personal knowledge management assistant with access to a rich knowledge
   graph of notes, contacts, projects, topics, bookmarks, and journal entries.

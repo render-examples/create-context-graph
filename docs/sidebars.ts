@@ -18,6 +18,8 @@ const sidebars: SidebarsConfig = {
         'how-to/import-saas-data',
         'how-to/add-custom-domain',
         'how-to/switch-agent-frameworks',
+        'how-to/use-neo4j-aura',
+        'how-to/use-docker',
       ],
     },
     {
@@ -27,6 +29,7 @@ const sidebars: SidebarsConfig = {
         'reference/cli-options',
         'reference/ontology-yaml-schema',
         'reference/generated-project-structure',
+        'reference/framework-comparison',
       ],
     },
     {
@@ -35,6 +38,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'explanation/how-domain-ontologies-work',
         'explanation/three-memory-types',
+        'explanation/why-context-graphs',
       ],
     },
   ],

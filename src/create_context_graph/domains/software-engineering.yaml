@@ -457,6 +457,30 @@ agent_tools:
         type: string
         description: Pull request ID
 
+  - name: list_repositories
+    description: "List Repository records with optional limit"
+    cypher: |
+      MATCH (n:Repository)
+      RETURN n
+      ORDER BY n.name
+      LIMIT toInteger($limit)
+    parameters:
+      - name: limit
+        type: string
+        description: "Maximum number of results to return (default: 10)"
+
+  - name: get_repository_by_name
+    description: "Get a specific Repository by name with all connections"
+    cypher: |
+      MATCH (n:Repository {name: $name})
+      OPTIONAL MATCH (n)-[r]-(related)
+      RETURN n, type(r) AS relationship, labels(related) AS related_labels, related.name AS related_name
+      LIMIT 50
+    parameters:
+      - name: name
+        type: string
+        description: "The repository name to look up"
+
 system_prompt: |
   You are an AI engineering intelligence assistant with access to a comprehensive
   knowledge graph of software development data. You help engineering teams analyze

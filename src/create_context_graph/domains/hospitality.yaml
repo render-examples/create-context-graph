@@ -469,6 +469,30 @@ agent_tools:
         type: string
         description: Hotel name to get revenue metrics for
 
+  - name: list_hotels
+    description: "List hotel records with optional limit"
+    cypher: |
+      MATCH (n:Hotel)
+      RETURN n
+      ORDER BY n.name
+      LIMIT toInteger($limit)
+    parameters:
+      - name: limit
+        type: string
+        description: "Maximum number of results to return (default: 10)"
+
+  - name: get_hotel_by_id
+    description: "Get a specific hotel by ID with all connections"
+    cypher: |
+      MATCH (n:Hotel {hotel_id: $id})
+      OPTIONAL MATCH (n)-[r]-(related)
+      RETURN n, type(r) AS relationship, labels(related) AS related_labels, related.name AS related_name
+      LIMIT 50
+    parameters:
+      - name: id
+        type: string
+        description: "The hotel_id to look up"
+
 system_prompt: |
   You are an AI hospitality intelligence assistant with access to a comprehensive
   knowledge graph of hotel operations data. You help hotel managers, front desk

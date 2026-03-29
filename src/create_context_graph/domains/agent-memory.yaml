@@ -425,6 +425,30 @@ agent_tools:
         type: string
         description: Entity name or type to search for
 
+  - name: list_agents
+    description: "List agent records with optional limit"
+    cypher: |
+      MATCH (n:Agent)
+      RETURN n
+      ORDER BY n.name
+      LIMIT toInteger($limit)
+    parameters:
+      - name: limit
+        type: string
+        description: "Maximum number of results to return (default: 10)"
+
+  - name: get_agent_by_id
+    description: "Get a specific agent by ID with all connections"
+    cypher: |
+      MATCH (n:Agent {agent_id: $id})
+      OPTIONAL MATCH (n)-[r]-(related)
+      RETURN n, type(r) AS relationship, labels(related) AS related_labels, related.name AS related_name
+      LIMIT 50
+    parameters:
+      - name: id
+        type: string
+        description: "The agent_id to look up"
+
 system_prompt: |
   You are an AI assistant for agent memory and conversation intelligence. You have
   access to a knowledge graph tracking AI agents, their conversations, extracted

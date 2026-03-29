@@ -56,7 +56,7 @@ FRAMEWORK_DEPENDENCIES = {
     "google-adk": ["google-adk>=0.1", "nest-asyncio>=1.5"],
     "openai-agents": ["openai-agents>=0.1"],
     "langgraph": ["langgraph>=0.1", "langchain-anthropic>=0.3"],
-    "crewai": ["crewai>=0.1"],
+    "crewai": ["crewai[anthropic]>=0.1"],
     "anthropic-tools": ["anthropic>=0.30"],
 }
 

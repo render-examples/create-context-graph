@@ -463,6 +463,45 @@ agent_tools:
         type: string
         description: Achievement name or category to search for
 
+  - name: list_players
+    description: "List Player records with optional limit"
+    cypher: |
+      MATCH (n:Player)
+      RETURN n
+      ORDER BY n.username
+      LIMIT toInteger($limit)
+    parameters:
+      - name: limit
+        type: string
+        description: "Maximum number of results to return (default: 10)"
+
+  - name: get_player_by_id
+    description: "Get a specific Player by ID with all connections"
+    cypher: |
+      MATCH (n:Player {player_id: $id})
+      OPTIONAL MATCH (n)-[r]-(related)
+      RETURN n, type(r) AS relationship, labels(related) AS related_labels, related.name AS related_name
+      LIMIT 50
+    parameters:
+      - name: id
+        type: string
+        description: "The player_id to look up"
+
+  - name: get_top_players
+    description: "Get top players sorted by level in descending order"
+    cypher: |
+      MATCH (n:Player)
+      OPTIONAL MATCH (n)-[:PLAYS]->(c:Character)
+      OPTIONAL MATCH (n)-[:MEMBER_OF]->(g:Guild)
+      RETURN n, collect(DISTINCT c.name) AS characters,
+             collect(DISTINCT g.name) AS guilds
+      ORDER BY n.level DESC
+      LIMIT toInteger($limit)
+    parameters:
+      - name: limit
+        type: string
+        description: "Maximum number of results to return (default: 10)"
+
 system_prompt: |
   You are an AI game intelligence assistant with access to a comprehensive
   knowledge graph of player data, game content, economy, and community

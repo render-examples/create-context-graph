@@ -1,5 +1,40 @@
 # Changelog
 
+## v0.6.1 — Stability, Data Quality & Tool Coverage (2026-03-28)
+
+### Critical Bug Fixes
+- **CrewAI dependency fix** — Changed `crewai>=0.1` to `crewai[anthropic]>=0.1` in framework dependencies. The crewai agent template uses `llm="anthropic/claude-sonnet-4-20250514"` which requires the anthropic extra. Without it, the generated project crashes on startup with `ImportError: Anthropic native provider not available`.
+- **CLI non-interactive mode fix** — The CLI no longer requires a positional `PROJECT_NAME` argument when all flags (`--domain`, `--framework`) are provided. Auto-generates a slug like `healthcare-pydanticai-app`. Also added TTY detection with helpful error messages for CI/CD environments.
+
+### Data Quality Improvements
+- **Document Markdown rendering** — Static document content now uses Markdown headings (`##`) instead of RST-style `===`/`---` separators. The DocumentBrowser component renders content with ReactMarkdown.
+- **Entity-derived document titles** — Document titles now reference primary entities: "Discharge Summary: Maria Elena Gonzalez" instead of generic "Discharge Summary #1".
+- **Realistic entity descriptions** — Replaced generic "Comprehensive patient profile for..." with POLE-type-aware descriptions using domain roles and industries (e.g., "Dr. Sarah Chen, attending physician specializing in healthcare").
+- **Domain-aware Organization.industry** — Added `DOMAIN_INDUSTRY_POOL` for all 22 domains. Healthcare organizations get "Hospital Systems" instead of "Technology".
+- **Realistic decision trace observations** — Observations now reference actual entity names: "Verified Dr. Sarah Chen against healthcare standards" instead of generic "Found 7 relevant records".
+- **Improved thinking text filter** — Added continuation patterns to catch multi-sentence agent thinking blocks between tool calls.
+
+### New Agent Tools (All 22 Domains)
+- **`list_*` tools** — Every domain now has a list tool for its primary entity type (e.g., `list_patients`, `list_players`, `list_accounts`) with sort and limit parameters.
+- **`get_*_by_id` tools** — Every domain now has a direct ID lookup tool that returns the entity with all connections (e.g., `get_patient_by_id`, `get_player_by_id`).
+- **Gaming-specific** — Added `get_top_players` tool (sort by level) for the gaming domain.
+
+### Frontend Improvements
+- **"Ask about this" button** — Clicking a node in the Knowledge Graph shows an "Ask about [entity]" button that sends a query to the chat.
+- **Node hover tooltips** — Graph nodes show full name, labels, and key properties on hover.
+- **Health polling optimization** — Reduced polling frequency from 30s to 60s.
+- **Responsive hint text** — Keyboard shortcut hint hidden on small screens to prevent overlap.
+- **Suggested question max width** — Pill buttons capped at 320px to prevent layout stretching.
+- **Scrollable label badges** — Label filter badges in the graph panel scroll when they overflow.
+- **Seed constraint fix** — Entity seeding now uses `ON CREATE SET / ON MATCH SET` to avoid constraint violations on re-seed.
+
+### Documentation
+- **4 new docs pages** — "Use Neo4j Aura", "Use Docker", "Why Context Graphs?", "Framework Comparison"
+- **Updated sidebars** — All new pages added to Docusaurus navigation
+
+### Testing
+- 602 passing tests (57 new), up from 545
+
 ## v0.6.0 — Comprehensive Testing Feedback (2026-03-28)
 
 ### Framework Fixes

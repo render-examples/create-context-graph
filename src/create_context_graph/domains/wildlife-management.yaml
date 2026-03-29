@@ -452,6 +452,30 @@ agent_tools:
         type: list
         description: List of severity levels to filter by (e.g., ['critical', 'high'])
 
+  - name: list_species
+    description: "List species records with optional limit"
+    cypher: |
+      MATCH (n:Species)
+      RETURN n
+      ORDER BY n.common_name
+      LIMIT toInteger($limit)
+    parameters:
+      - name: limit
+        type: string
+        description: "Maximum number of results to return (default: 10)"
+
+  - name: get_species_by_id
+    description: "Get a specific species by ID with all connections"
+    cypher: |
+      MATCH (n:Species {species_id: $id})
+      OPTIONAL MATCH (n)-[r]-(related)
+      RETURN n, type(r) AS relationship, labels(related) AS related_labels, related.name AS related_name
+      LIMIT 50
+    parameters:
+      - name: id
+        type: string
+        description: "The species_id to look up"
+
 system_prompt: |
   You are an AI wildlife management assistant with access to a comprehensive
   knowledge graph of species, habitats, sightings, and conservation data. You

@@ -69,11 +69,18 @@ export default function Home() {
   const leftBaseRef = useRef(400);
   const rightBaseRef = useRef(350);
 
+  const [askAboutInput, setAskAboutInput] = useState<string | null>(null);
+
   const handleGraphUpdate = useCallback((data: GraphData) => {
     setGraphData(data);
   }, []);
 
-  // Poll backend health every 30 seconds
+  const handleAskAbout = useCallback((entityName: string) => {
+    setAskAboutInput(`Tell me about ${entityName}`);
+    setActivePanel("chat");
+  }, []);
+
+  // Poll backend health every 60 seconds
   useEffect(() => {
     async function checkHealth() {
       try {
@@ -87,7 +94,7 @@ export default function Home() {
       }
     }
     checkHealth();
-    const interval = setInterval(checkHealth, 30000);
+    const interval = setInterval(checkHealth, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -154,7 +161,11 @@ export default function Home() {
           flexShrink={0}
           display={{ base: activePanel === "chat" ? "block" : "none", lg: "block" }}
         >
-          <ChatInterface onGraphUpdate={handleGraphUpdate} />
+          <ChatInterface
+              onGraphUpdate={handleGraphUpdate}
+              externalInput={askAboutInput}
+              onExternalInputConsumed={() => setAskAboutInput(null)}
+            />
         </Box>
 
         <ResizeHandle onDrag={handleLeftDrag} />
@@ -168,7 +179,7 @@ export default function Home() {
           display={{ base: activePanel === "graph" ? "block" : "none", lg: "block" }}
         >
           <ErrorBoundary fallbackMessage="Graph visualization error">
-            <ContextGraphView externalGraphData={graphData} />
+            <ContextGraphView externalGraphData={graphData} onAskAbout={handleAskAbout} />
           </ErrorBoundary>
         </Box>
 

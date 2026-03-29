@@ -440,6 +440,30 @@ agent_tools:
         type: string
         description: Name of the system to check health for
 
+  - name: list_assets
+    description: "List asset records with optional limit"
+    cypher: |
+      MATCH (n:Asset)
+      RETURN n
+      ORDER BY n.name
+      LIMIT toInteger($limit)
+    parameters:
+      - name: limit
+        type: string
+        description: "Maximum number of results to return (default: 10)"
+
+  - name: get_asset_by_id
+    description: "Get a specific asset by ID with all connections"
+    cypher: |
+      MATCH (n:Asset {asset_id: $id})
+      OPTIONAL MATCH (n)-[r]-(related)
+      RETURN n, type(r) AS relationship, labels(related) AS related_labels, related.name AS related_name
+      LIMIT 50
+    parameters:
+      - name: id
+        type: string
+        description: "The asset_id to look up"
+
 system_prompt: |
   You are an AI assistant for digital twin and industrial IoT management. You have
   access to a knowledge graph of physical assets, sensors, readings, alerts,

@@ -69,6 +69,7 @@ interface SelectedElement {
 
 interface ContextGraphViewProps {
   externalGraphData?: GraphData | null;
+  onAskAbout?: (entityName: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -162,7 +163,7 @@ function getNodeSize(labels: string[]): number {
 // Main component
 // ---------------------------------------------------------------------------
 
-export function ContextGraphView({ externalGraphData }: ContextGraphViewProps) {
+export function ContextGraphView({ externalGraphData, onAskAbout }: ContextGraphViewProps) {
   const [isSchemaView, setIsSchemaView] = useState(true);
   const [loading, setLoading] = useState(false);
   const [isExpanding, setIsExpanding] = useState(false);
@@ -346,9 +347,20 @@ export function ContextGraphView({ externalGraphData }: ContextGraphViewProps) {
         node.labels[0] ||
         node.id.slice(0, 8);
 
+      // Build tooltip with full name and labels
+      const tooltip = [
+        caption,
+        `Labels: ${node.labels.join(", ")}`,
+        ...Object.entries(node.properties)
+          .filter(([k]) => k !== "name" && k !== "title")
+          .slice(0, 5)
+          .map(([k, v]) => `${k}: ${v}`),
+      ].join("\n");
+
       return {
         id: node.id,
         caption,
+        title: tooltip,
         color: isSelected
           ? "#E53E3E"
           : isExpanded
@@ -435,8 +447,10 @@ export function ContextGraphView({ externalGraphData }: ContextGraphViewProps) {
         p={2}
         gap={2}
         flexWrap="wrap"
-        maxW="200px"
-        maxH="240px"
+        maxW="220px"
+        maxH="180px"
+        overflowY="auto"
+        css={{ "&::-webkit-scrollbar": { width: "4px" }, "&::-webkit-scrollbar-thumb": { background: "#CBD5E0", borderRadius: "4px" } }}
         overflowY="auto"
         boxShadow="sm"
         borderWidth="1px"
@@ -504,6 +518,19 @@ export function ContextGraphView({ externalGraphData }: ContextGraphViewProps) {
                   </Badge>
                 ))}
               </HStack>
+              {onAskAbout && (selectedElement.data as GraphNode).properties.name && (
+                <Button
+                  size="xs"
+                  colorPalette="blue"
+                  variant="outline"
+                  onClick={() => {
+                    const name = (selectedElement.data as GraphNode).properties.name as string;
+                    onAskAbout(name);
+                  }}
+                >
+                  Ask about {((selectedElement.data as GraphNode).properties.name as string).slice(0, 30)}
+                </Button>
+              )}
               <VStack align="stretch" gap={1}>
                 {Object.entries((selectedElement.data as GraphNode).properties)
                   .filter(([key]) => !key.startsWith("_") && key !== "isSchemaNode" && key !== "embedding")

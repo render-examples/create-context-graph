@@ -251,10 +251,21 @@ Write 200-400 words of realistic, professional content. Do not include any metad
                     template, ontology, entities, i
                 )
 
+            # Derive title from primary entity reference
+            primary_name = None
+            if template.required_entities:
+                primary_label = template.required_entities[0]
+                label_entities = entities.get(primary_label, [])
+                if label_entities:
+                    entity = label_entities[i % len(label_entities)]
+                    primary_name = entity.get("name")
+
+            title = f"{template.name}: {primary_name}" if primary_name else f"{template.name} #{i + 1}"
+
             documents.append({
                 "template_id": template.id,
                 "template_name": template.name,
-                "title": f"{template.name} #{i + 1}",
+                "title": title,
                 "content": content,
             })
 
@@ -278,28 +289,28 @@ def _generate_static_document(template, ontology, entities, index) -> str:
     doc_date = generate_date()
 
     return (
-        f"{template.name}\n"
-        f"{'=' * len(template.name)}\n\n"
-        f"Date: {doc_date}\n"
-        f"Domain: {ontology.domain.name}\n"
-        f"Reference: {context_str}\n\n"
-        f"Summary\n-------\n"
+        f"# {template.name}\n\n"
+        f"**Date:** {doc_date}  \n"
+        f"**Domain:** {ontology.domain.name}  \n"
+        f"**Reference:** {context_str}\n\n"
+        f"## Summary\n\n"
         f"This {template.name.lower()} documents {template.description.lower()}. "
         f"It pertains to {context_str} and was prepared as part of standard "
         f"{ontology.domain.name.lower()} operations.\n\n"
-        f"Details\n-------\n"
+        f"## Details\n\n"
         f"The following information has been compiled based on available records "
         f"and observations. All referenced entities have been verified against "
         f"the current knowledge graph.\n\n"
         f"Key findings and observations related to {context_str} are documented "
         f"below. This record should be reviewed in conjunction with related "
         f"documents and entity records for complete context.\n\n"
-        f"Recommendations\n---------------\n"
+        f"## Recommendations\n\n"
         f"Based on the analysis of {context_str}, the following actions are "
         f"recommended for continued monitoring and follow-up. Please refer to "
         f"the relevant entity profiles and prior {template.name.lower()} records "
         f"for historical context and trend analysis.\n\n"
-        f"Document generated for {ontology.domain.name} context graph application."
+        f"---\n\n"
+        f"*Document generated for {ontology.domain.name} context graph application.*"
     )
 
 
@@ -308,17 +319,49 @@ def _generate_static_document(template, ontology, entities, index) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _generate_static_observation(action: str, domain_name: str) -> str:
+def _generate_static_observation(
+    action: str,
+    domain_name: str,
+    entities: dict[str, list[dict]] | None = None,
+) -> str:
     """Generate a realistic observation for a decision trace step."""
+    # Pick a random entity name for context if available
+    entity_ref = ""
+    if entities:
+        all_entities = [e for elist in entities.values() for e in elist if e.get("name")]
+        if all_entities:
+            picked = random.choice(all_entities)
+            entity_ref = picked.get("name", "")
+
     action_lower = action.lower()
+    count = random.randint(3, 12)
     if "query" in action_lower or "search" in action_lower or "retrieve" in action_lower:
-        return f"Found 7 relevant records in the {domain_name.lower()} knowledge graph matching the search criteria. Results sorted by relevance and recency."
+        if entity_ref:
+            return (
+                f"Found {count} relevant records in the {domain_name.lower()} knowledge graph. "
+                f"Top result: {entity_ref} with {random.randint(2, 6)} connected entities."
+            )
+        return f"Found {count} relevant records in the {domain_name.lower()} knowledge graph matching the search criteria."
     if "check" in action_lower or "verify" in action_lower or "validate" in action_lower:
+        if entity_ref:
+            return (
+                f"Verified {entity_ref} against {domain_name.lower()} standards. "
+                f"All {random.randint(3, 8)} checked parameters within acceptable thresholds."
+            )
         return f"Validation completed successfully. All checked parameters are within acceptable thresholds for {domain_name.lower()} standards."
     if "calculate" in action_lower or "compute" in action_lower or "analyze" in action_lower:
+        if entity_ref:
+            return (
+                f"Analysis of {entity_ref} complete. Key metrics computed and compared against "
+                f"historical baselines — {random.randint(2, 5)} indicators flagged for review."
+            )
         return "Analysis complete. Key metrics computed and compared against historical baselines. Results indicate normal operational parameters."
     if "review" in action_lower:
-        return "Review of available records completed. Identified 3 key factors relevant to the current decision context."
+        if entity_ref:
+            return f"Review of {entity_ref} completed. Identified {random.randint(2, 5)} key factors relevant to the current decision context."
+        return f"Review of available records completed. Identified {random.randint(2, 5)} key factors relevant to the current decision context."
+    if entity_ref:
+        return f"Action completed for {entity_ref}. Results consistent with expected {domain_name.lower()} domain patterns."
     return f"Action completed. Results consistent with expected {domain_name.lower()} domain patterns and prior observations."
 
 
@@ -404,7 +447,7 @@ def _generate_decision_traces(
 
         steps = []
         for step in trace_def.steps:
-            observation = step.observation or _generate_static_observation(step.action, ontology.domain.name)
+            observation = step.observation or _generate_static_observation(step.action, ontology.domain.name, entities)
             if client and provider:
                 try:
                     observation = _llm_generate(

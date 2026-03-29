@@ -442,6 +442,30 @@ agent_tools:
         type: string
         description: Player name to analyze handicap trends
 
+  - name: list_courses
+    description: "List golf course records with optional limit"
+    cypher: |
+      MATCH (n:Course)
+      RETURN n
+      ORDER BY n.name
+      LIMIT toInteger($limit)
+    parameters:
+      - name: limit
+        type: string
+        description: "Maximum number of results to return (default: 10)"
+
+  - name: get_course_by_id
+    description: "Get a specific golf course by ID with all connections"
+    cypher: |
+      MATCH (n:Course {course_id: $id})
+      OPTIONAL MATCH (n)-[r]-(related)
+      RETURN n, type(r) AS relationship, labels(related) AS related_labels, related.name AS related_name
+      LIMIT 50
+    parameters:
+      - name: id
+        type: string
+        description: "The course_id to look up"
+
 system_prompt: |
   You are an AI golf intelligence assistant with access to a comprehensive
   knowledge graph of golf data. You help players, coaches, tournament directors,
