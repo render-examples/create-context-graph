@@ -202,7 +202,7 @@ Required env vars: `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD`, plus `ANTHRO
 | Target | Description |
 |--------|-------------|
 | `make test` | Fast unit tests (602 tests, no external deps) |
-| `make test-slow` | Full suite including matrix + perf (743 tests) |
+| `make test-slow` | Full suite including matrix + perf (800 tests) |
 | `make test-matrix` | Domain × framework matrix only (176 combos) |
 | `make test-coverage` | Tests with HTML coverage report |
 | `make smoke-test` | E2E smoke tests for 3 key frameworks (requires Neo4j + API keys) |
@@ -278,7 +278,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on push to `main` and all PRs:
 |-----|---------|-------------|
 | **test** | All pushes + PRs | Unit tests on Python 3.11 and 3.12 (602 tests) |
 | **lint** | All pushes + PRs | Ruff linter on `src/` and `tests/` |
-| **matrix** | Push to `main` only | All 176 domain × framework scaffold combinations |
+| **matrix** | Push to `main` only | Full suite + 176 domain × framework matrix + 22 perf tests (800 tests) |
 | **smoke-test** | Push to `main` only | E2E: scaffold → install → start → chat for all 8 frameworks |
 
 The smoke-test job is gated behind `vars.SMOKE_TESTS_ENABLED == 'true'` (repository variable) and requires these repository secrets: `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`. It uses `fail-fast: false` so one framework failure doesn't block others, and depends on the `test` job passing first.

@@ -13,10 +13,10 @@ install-all:  ## Install all optional dependencies (dev + generate + connectors)
 
 ## Testing
 
-test:  ## Run fast tests (510 tests, no Neo4j or API keys required)
+test:  ## Run fast tests (602 tests, no Neo4j or API keys required)
 	uv run pytest tests/ -v --tb=short
 
-test-slow:  ## Run full test suite including matrix + perf tests (708 tests)
+test-slow:  ## Run full test suite including matrix + perf tests (800 tests)
 	uv run pytest tests/ -v --tb=short --slow
 
 test-matrix:  ## Run domain x framework matrix only (176 combos)
