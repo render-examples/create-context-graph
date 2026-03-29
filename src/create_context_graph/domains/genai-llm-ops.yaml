@@ -423,6 +423,30 @@ agent_tools:
         type: string
         description: Prompt name or category to search for
 
+  - name: list_models
+    description: "List ML model records with optional limit"
+    cypher: |
+      MATCH (n:Model)
+      RETURN n
+      ORDER BY n.name
+      LIMIT toInteger($limit)
+    parameters:
+      - name: limit
+        type: string
+        description: "Maximum number of results to return (default: 10)"
+
+  - name: get_model_by_id
+    description: "Get a specific model by ID with all connections"
+    cypher: |
+      MATCH (n:Model {model_id: $id})
+      OPTIONAL MATCH (n)-[r]-(related)
+      RETURN n, type(r) AS relationship, labels(related) AS related_labels, related.name AS related_name
+      LIMIT 50
+    parameters:
+      - name: id
+        type: string
+        description: "The model_id to look up"
+
 system_prompt: |
   You are an AI assistant for ML operations and LLM lifecycle management. You have
   access to a comprehensive knowledge graph tracking models, experiments, datasets,

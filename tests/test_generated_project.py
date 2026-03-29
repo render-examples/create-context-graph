@@ -1656,3 +1656,149 @@ class TestV060ChatInterfaceUI:
         out, _ = generated_project
         chat = (out / "frontend" / "components" / "ChatInterface.tsx").read_text()
         assert "Running tool" in chat, "Should show running tool count"
+
+
+class TestV061DataQuality:
+    """Tests for v0.6.1 data quality improvements."""
+
+    def test_description_no_comprehensive_profile(self):
+        """Entity descriptions should not use generic 'Comprehensive profile' template."""
+        from create_context_graph.name_pools import generate_property_value
+        for label in ("Patient", "Person", "Provider"):
+            val = generate_property_value("description", "string", "Test Name", label, 0, domain_id="healthcare")
+            assert "comprehensive" not in val.lower(), f"{label} description should not say 'comprehensive': {val}"
+
+    def test_description_person_uses_domain_role(self):
+        """Person-type entity descriptions should include a domain-specific role."""
+        from create_context_graph.name_pools import generate_property_value
+        val = generate_property_value("description", "string", "Dr. Chen", "Patient", 0, domain_id="healthcare")
+        assert "healthcare" in val.lower(), f"Healthcare patient description should mention healthcare: {val}"
+
+    def test_description_organization_uses_domain_industry(self):
+        """Organization-type entity descriptions should use domain-specific industry."""
+        from create_context_graph.name_pools import generate_property_value
+        val = generate_property_value("description", "string", "Metro Hospital", "Organization", 0, domain_id="healthcare")
+        assert "hospital" in val.lower() or "healthcare" in val.lower(), (
+            f"Healthcare org description should mention hospital/healthcare: {val}"
+        )
+
+    def test_description_default_label(self):
+        """Non-person/non-org labels should use generic template."""
+        from create_context_graph.name_pools import generate_property_value
+        val = generate_property_value("description", "string", "Sample Item", "Medication", 0, domain_id="healthcare")
+        assert "medication" in val.lower(), f"Medication description should mention label: {val}"
+
+    def test_industry_healthcare_not_technology(self):
+        """Healthcare domain organizations should have healthcare-related industries."""
+        from create_context_graph.name_pools import generate_property_value
+        for i in range(6):
+            val = generate_property_value("industry", "string", "Test Org", "Organization", i, domain_id="healthcare")
+            assert val != "Technology", f"Healthcare industry should not be 'Technology', got: {val}"
+
+    def test_industry_all_22_domains_have_pools(self):
+        """All 22 domains should have entries in DOMAIN_INDUSTRY_POOL."""
+        from create_context_graph.name_pools import DOMAIN_INDUSTRY_POOL
+        from create_context_graph.ontology import list_available_domains
+        domains = list_available_domains()
+        for domain in domains:
+            domain_id = domain["id"] if isinstance(domain, dict) else domain
+            assert domain_id in DOMAIN_INDUSTRY_POOL, f"Missing DOMAIN_INDUSTRY_POOL for {domain_id}"
+
+    def test_observation_with_entities_references_name(self):
+        """Decision trace observations should reference entity names when entities are provided."""
+        from create_context_graph.generator import _generate_static_observation
+        entities = {"Patient": [{"name": "Dr. Sarah Chen"}]}
+        obs = _generate_static_observation("query patient records", "Healthcare", entities)
+        assert "Dr. Sarah Chen" in obs, f"Observation should reference entity name: {obs}"
+
+    def test_observation_without_entities_still_works(self):
+        """Decision trace observations should work without entity context."""
+        from create_context_graph.generator import _generate_static_observation
+        obs = _generate_static_observation("query records", "Healthcare", None)
+        assert "healthcare" in obs.lower(), f"Observation should mention domain: {obs}"
+
+
+class TestV061FrontendFeatures:
+    """Tests for v0.6.1 frontend feature additions."""
+
+    def test_thinking_filter_has_continuation_patterns(self, generated_project):
+        """ChatInterface should have CONTINUATION_PATTERNS for multi-sentence thinking."""
+        out, _ = generated_project
+        chat = (out / "frontend" / "components" / "ChatInterface.tsx").read_text()
+        assert "CONTINUATION_PATTERNS" in chat, "Should define CONTINUATION_PATTERNS"
+        assert "inThinkingBlock" in chat, "Should track thinking block state"
+
+    def test_document_browser_uses_react_markdown(self, generated_project):
+        """DocumentBrowser should render content with ReactMarkdown."""
+        out, _ = generated_project
+        doc_browser = (out / "frontend" / "components" / "DocumentBrowser.tsx").read_text()
+        assert "ReactMarkdown" in doc_browser, "Should import ReactMarkdown"
+        assert "remarkGfm" in doc_browser, "Should import remarkGfm"
+
+    def test_graph_view_has_node_tooltip(self, generated_project):
+        """ContextGraphView should have node hover tooltips."""
+        out, _ = generated_project
+        graph = (out / "frontend" / "components" / "ContextGraphView.tsx").read_text()
+        assert "title: tooltip" in graph, "Nodes should have title/tooltip property"
+
+    def test_graph_view_has_ask_about_button(self, generated_project):
+        """ContextGraphView should have an 'Ask about' button on node click."""
+        out, _ = generated_project
+        graph = (out / "frontend" / "components" / "ContextGraphView.tsx").read_text()
+        assert "onAskAbout" in graph, "Should have onAskAbout prop"
+        assert "Ask about" in graph, "Should render 'Ask about' button text"
+
+    def test_page_wires_ask_about(self, generated_project):
+        """page.tsx should wire the askAbout callback between graph and chat."""
+        out, _ = generated_project
+        page = (out / "frontend" / "app" / "page.tsx").read_text()
+        assert "askAboutInput" in page, "Should have askAboutInput state"
+        assert "handleAskAbout" in page, "Should have handleAskAbout callback"
+        assert "externalInput" in page, "Should pass externalInput to ChatInterface"
+
+    def test_health_polling_60s(self, generated_project):
+        """Health check should poll every 60 seconds, not 30."""
+        out, _ = generated_project
+        page = (out / "frontend" / "app" / "page.tsx").read_text()
+        assert "60000" in page, "Should poll every 60 seconds"
+        assert "30000" not in page, "Should not poll every 30 seconds"
+
+    def test_generate_data_uses_on_create_match_set(self, generated_project):
+        """generate_data.py should use ON CREATE SET / ON MATCH SET for safe upserts."""
+        out, _ = generated_project
+        gen_data = (out / "backend" / "scripts" / "generate_data.py").read_text()
+        assert "ON CREATE SET" in gen_data, "Should use ON CREATE SET"
+        assert "ON MATCH SET" in gen_data, "Should use ON MATCH SET"
+
+
+class TestV061DomainTools:
+    """Tests for v0.6.1 list/get-by-id tools added to all domains."""
+
+    def test_all_domains_have_list_tool(self):
+        """Every domain should have at least one list_* tool."""
+        from create_context_graph.ontology import list_available_domains, load_domain
+        for domain in list_available_domains():
+            did = domain["id"] if isinstance(domain, dict) else domain
+            ontology = load_domain(did)
+            tool_names = [t.name for t in ontology.agent_tools]
+            has_list = any(t.startswith("list_") for t in tool_names)
+            assert has_list, f"Domain {did} should have a list_* tool, got: {tool_names}"
+
+    def test_all_domains_have_get_by_id_tool(self):
+        """Every domain should have at least one get_*_by_id or get_*_by_name tool."""
+        from create_context_graph.ontology import list_available_domains, load_domain
+        for domain in list_available_domains():
+            did = domain["id"] if isinstance(domain, dict) else domain
+            ontology = load_domain(did)
+            tool_names = [t.name for t in ontology.agent_tools]
+            has_get = any("_by_id" in t or "_by_name" in t for t in tool_names)
+            assert has_get, f"Domain {did} should have a get_by_id tool, got: {tool_names}"
+
+    def test_all_domains_have_minimum_tool_count(self):
+        """Every domain should have at least 7 agent tools."""
+        from create_context_graph.ontology import list_available_domains, load_domain
+        for domain in list_available_domains():
+            did = domain["id"] if isinstance(domain, dict) else domain
+            ontology = load_domain(did)
+            count = len(ontology.agent_tools)
+            assert count >= 7, f"Domain {did} should have >= 7 tools, got {count}"

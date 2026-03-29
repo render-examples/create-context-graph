@@ -686,13 +686,74 @@ The Documents panel and Decision Traces panel appeared empty when using `--inges
 - `tests/test_config.py` — `TestGoogleApiKey`
 - `tests/test_generated_project.py` — 5 new test classes
 
+## Phase 13 — v0.6.1 Stability, Data Quality & Tool Coverage
+
+Comprehensive v0.6.0 testing revealed dependency issues, data quality gaps, missing tool archetypes, and frontend UX improvements. This phase addresses all findings across v0.6.1 (bug fixes), v0.6.2 (data quality), and v0.7.0 (features + docs) in a single release.
+
+### Critical Bug Fixes
+
+- **CrewAI `[anthropic]` dependency**: Changed `crewai>=0.1` to `crewai[anthropic]>=0.1` in `config.py` FRAMEWORK_DEPENDENCIES. The crewai agent template uses Anthropic's Claude model, which requires the extra.
+- **CLI auto-slug without PROJECT_NAME**: When `--domain` and `--framework` flags are provided without a positional project name, the CLI now auto-generates a slug (e.g., `healthcare-pydanticai-app`). Added TTY detection with helpful error messages for CI/CD.
+
+### Data Quality
+
+- **Document Markdown format**: Static document content now uses `## Heading` instead of RST `===`/`---`. DocumentBrowser renders with ReactMarkdown.
+- **Entity-derived document titles**: Titles reference primary entities ("Discharge Summary: Maria Elena Gonzalez") instead of sequential numbers.
+- **POLE-type-aware entity descriptions**: Replaced "Comprehensive patient profile for..." with role/industry-specific descriptions using domain pools.
+- **Domain-aware Organization.industry**: Added `DOMAIN_INDUSTRY_POOL` for all 22 domains (healthcare → "Hospital Systems", not "Technology").
+- **Realistic decision trace observations**: Now reference actual entity names and vary by action type.
+- **Improved thinking text filter**: Added `CONTINUATION_PATTERNS` to catch multi-sentence thinking blocks.
+
+### Agent Tool Coverage
+
+- **`list_*` and `get_*_by_id` tools for all 22 domains**: Every domain now has aggregate listing and direct ID lookup tools alongside existing search/analysis tools. Each domain has 7-8+ tools (up from 5-6).
+- **Gaming `get_top_players`**: Domain-specific aggregate tool sorting by level.
+
+### Frontend Features
+
+- **"Ask about this" button**: Clicking a graph node shows a button that sends "Tell me about {entity}" to the chat. Wired via `externalInput` prop from ContextGraphView → page.tsx → ChatInterface.
+- **Node hover tooltips**: Full name, labels, and top 5 properties shown on hover.
+- **Health polling 30s → 60s**: Reduced unnecessary traffic.
+- **Mobile-responsive hint text**: Keyboard shortcut hint hidden on small screens.
+- **Suggested question maxW**: Pill buttons capped at 320px.
+- **Scrollable label badges**: Label filter badges scroll when they overflow (maxH 180px).
+- **Seed constraint fix**: `generate_data.py.j2` uses `ON CREATE SET / ON MATCH SET` to avoid constraint violations.
+
+### Documentation
+
+- **4 new docs pages**: `use-neo4j-aura.md`, `use-docker.md`, `why-context-graphs.md`, `framework-comparison.md`
+- **Updated sidebars.ts**: All new pages added to Docusaurus navigation.
+
+### Tests added (57 new → 602 total)
+
+- `test_crewai_includes_anthropic_extra` — verifies crewai dependency has anthropic extra
+- `test_no_project_name_auto_generates_slug` — verifies CLI auto-slug generation
+
+### Files modified
+
+- `src/create_context_graph/config.py` — crewai[anthropic] dependency
+- `src/create_context_graph/cli.py` — auto-slug generation, TTY detection
+- `src/create_context_graph/generator.py` — Markdown documents, entity-derived titles, realistic observations
+- `src/create_context_graph/name_pools.py` — DOMAIN_INDUSTRY_POOL, _generate_description, _PERSON_LABELS, _ORGANIZATION_LABELS
+- `src/create_context_graph/templates/backend/shared/generate_data.py.j2` — ON CREATE/MATCH SET
+- `src/create_context_graph/templates/frontend/components/ChatInterface.tsx.j2` — thinking filter, externalInput, responsive hint
+- `src/create_context_graph/templates/frontend/components/ContextGraphView.tsx.j2` — tooltips, ask-about button, scrollable badges
+- `src/create_context_graph/templates/frontend/components/DocumentBrowser.tsx.j2` — ReactMarkdown rendering
+- `src/create_context_graph/templates/frontend/app/page.tsx.j2` — askAbout wiring, 60s health polling
+- All 22 domain YAML files — list_* and get_*_by_id tools added
+- `docs/sidebars.ts` — 4 new pages
+- `docs/docs/how-to/use-neo4j-aura.md` — new
+- `docs/docs/how-to/use-docker.md` — new
+- `docs/docs/explanation/why-context-graphs.md` — new
+- `docs/docs/reference/framework-comparison.md` — new
+
 ---
 
 ## Summary
 
 | Phase | Description | Status | Tests |
 |-------|-------------|--------|-------|
-| 1 | Core CLI & Template Engine | **Complete** | 545 passing |
+| 1 | Core CLI & Template Engine | **Complete** | 602 passing |
 | 2 | Domain Expansion & Data Generation | **Complete** | (included above) |
 | 3 | Framework Templates & Frontend | **Complete** | (included above) |
 | 4 | SaaS Import & Custom Domains | **Complete** | (included above) |
@@ -706,3 +767,4 @@ The Documents panel and Decision Traces panel appeared empty when using `--inges
 | 10 | Framework Reliability, Data Quality & UX | **Complete** | (included above) |
 | 11 | v0.5.1 Testing Feedback Fixes | **Complete** | (included above) |
 | 12 | v0.6.0 Comprehensive Testing Feedback | **Complete** | (included above) |
+| 13 | v0.6.1 Stability, Data Quality & Tools | **Complete** | (included above) |

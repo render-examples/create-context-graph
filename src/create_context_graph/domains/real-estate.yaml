@@ -485,6 +485,30 @@ agent_tools:
         type: string
         description: Property ID or address to look up inspections for
 
+  - name: list_properties
+    description: "List Property records with optional limit"
+    cypher: |
+      MATCH (n:Property)
+      RETURN n
+      ORDER BY n.address
+      LIMIT toInteger($limit)
+    parameters:
+      - name: limit
+        type: string
+        description: "Maximum number of results to return (default: 10)"
+
+  - name: get_property_by_id
+    description: "Get a specific Property by ID with all connections"
+    cypher: |
+      MATCH (n:Property {property_id: $id})
+      OPTIONAL MATCH (n)-[r]-(related)
+      RETURN n, type(r) AS relationship, labels(related) AS related_labels, related.name AS related_name
+      LIMIT 50
+    parameters:
+      - name: id
+        type: string
+        description: "The property_id to look up"
+
 system_prompt: |
   You are an AI real estate intelligence assistant with access to a comprehensive
   knowledge graph of properties, listings, transactions, and market data. You

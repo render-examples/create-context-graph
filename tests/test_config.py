@@ -99,6 +99,11 @@ class TestProjectConfig:
         for fw in SUPPORTED_FRAMEWORKS:
             assert fw in FRAMEWORK_DEPENDENCIES
 
+    def test_crewai_includes_anthropic_extra(self):
+        """crewai agent template uses anthropic LLM, so the extra is required."""
+        deps = FRAMEWORK_DEPENDENCIES["crewai"]
+        assert any("anthropic" in dep for dep in deps)
+
     def test_existing_neo4j_config(self):
         config = ProjectConfig(
             project_name="Test",

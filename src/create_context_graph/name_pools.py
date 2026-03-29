@@ -410,6 +410,97 @@ _INDUSTRY_POOL = [
     "Environmental Services", "Logistics",
 ]
 
+DOMAIN_INDUSTRY_POOL: dict[str, list[str]] = {
+    "healthcare": [
+        "Hospital Systems", "Medical Devices", "Pharmaceuticals",
+        "Health Insurance", "Clinical Research", "Telemedicine",
+    ],
+    "financial-services": [
+        "Banking", "Insurance", "Asset Management", "Fintech",
+        "Investment Banking", "Private Equity",
+    ],
+    "gaming": [
+        "Game Development", "Esports", "Game Publishing",
+        "Interactive Entertainment", "Game Streaming", "Game Analytics",
+    ],
+    "software-engineering": [
+        "Software Development", "Cloud Computing", "Cybersecurity",
+        "DevOps", "SaaS", "Open Source",
+    ],
+    "conservation": [
+        "Conservation", "Wildlife Services", "Environmental Research",
+        "Park Management", "Ecological Consulting", "Marine Biology",
+    ],
+    "data-journalism": [
+        "Investigative Journalism", "Data Analytics", "News Media",
+        "Publishing", "Digital Media", "Public Interest Research",
+    ],
+    "manufacturing": [
+        "Industrial Manufacturing", "Automotive", "Aerospace",
+        "Process Engineering", "Supply Chain", "Quality Assurance",
+    ],
+    "real-estate": [
+        "Residential Real Estate", "Commercial Real Estate", "Property Management",
+        "Real Estate Investment", "Urban Development", "Construction",
+    ],
+    "trip-planning": [
+        "Travel & Tourism", "Hospitality", "Tour Operations",
+        "Travel Technology", "Destination Marketing", "Adventure Travel",
+    ],
+    "wildlife-management": [
+        "Wildlife Conservation", "Habitat Management", "Animal Welfare",
+        "Ecological Services", "Biodiversity Research", "Forest Management",
+    ],
+    "scientific-research": [
+        "Biotechnology", "Pharmaceutical Research", "Academic Research",
+        "Laboratory Services", "Scientific Publishing", "R&D",
+    ],
+    "oil-gas": [
+        "Oil & Gas Exploration", "Petroleum Engineering", "Energy Services",
+        "Pipeline Operations", "Refining", "Upstream Operations",
+    ],
+    "retail-ecommerce": [
+        "E-Commerce", "Retail Technology", "Consumer Goods",
+        "Marketplace Operations", "Logistics & Fulfillment", "Digital Retail",
+    ],
+    "hospitality": [
+        "Hospitality Management", "Hotel Operations", "Restaurant Services",
+        "Event Management", "Resort Operations", "Food & Beverage",
+    ],
+    "digital-twin": [
+        "Digital Twin Technology", "IoT", "Simulation Engineering",
+        "Smart Manufacturing", "Predictive Analytics", "Industrial IoT",
+    ],
+    "genai-llm-ops": [
+        "AI/ML Operations", "LLM Infrastructure", "AI Research",
+        "Machine Learning", "NLP Services", "AI Platform",
+    ],
+    "gis-cartography": [
+        "Geospatial Services", "Cartography", "GIS Technology",
+        "Remote Sensing", "Surveying", "Spatial Analytics",
+    ],
+    "golf-sports": [
+        "Sports Management", "Golf Club Operations", "Sports Technology",
+        "Athletic Training", "Sports Analytics", "Event Management",
+    ],
+    "personal-knowledge": [
+        "Knowledge Management", "Personal Productivity", "EdTech",
+        "Information Services", "Content Organization", "Learning Platforms",
+    ],
+    "product-management": [
+        "Product Development", "Software Products", "Product Analytics",
+        "UX Research", "Product Strategy", "Growth Engineering",
+    ],
+    "vacation-industry": [
+        "Vacation Rentals", "Tourism", "Travel Services",
+        "Resort Management", "Leisure & Recreation", "Destination Services",
+    ],
+    "agent-memory": [
+        "AI Systems", "Memory Architecture", "Agent Infrastructure",
+        "Cognitive Computing", "AI Research", "Knowledge Systems",
+    ],
+}
+
 _CURRENCY_POOL = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", "INR", "BRL"]
 
 _TICKER_POOL = [
@@ -776,6 +867,57 @@ def get_names_for_label(
     return get_names_for_pole_type(pole_type, count, domain_id=domain_id)
 
 
+_PERSON_LABELS = {
+    "Person", "Patient", "Provider", "Player", "Journalist", "Source",
+    "Agent", "Contributor", "Character", "Traveler", "Suspect", "Witness",
+    "Developer", "Researcher", "Scientist", "Engineer", "Officer", "Ranger",
+    "Worker", "Employee", "Instructor", "Advisor", "Analyst", "Athlete",
+    "Artist", "Author", "Musician", "Director", "Manager", "Coordinator",
+}
+
+_ORGANIZATION_LABELS = {
+    "Organization", "Hospital", "Facility", "Company", "Guild", "Publisher",
+    "Agency", "Department", "School", "University", "Institute", "Clinic",
+    "Studio", "Team", "Corporation", "Foundation", "Association", "Lab",
+    "Bureau", "Firm", "Outlet", "Network", "Platform", "Exchange",
+}
+
+
+def _generate_description(
+    label: str, entity_name: str, domain_id: str | None, index: int
+) -> str:
+    """Generate a realistic description based on entity label and domain."""
+    domain_display = (domain_id or "general").replace("-", " ")
+
+    if label in _PERSON_LABELS:
+        roles = DOMAIN_ROLE_POOL.get(domain_id, _ROLE_POOL) if domain_id else _ROLE_POOL
+        role = roles[index % len(roles)]
+        templates = [
+            f"{entity_name}, {role.lower()} specializing in {domain_display}.",
+            f"{role} {entity_name} — active in the {domain_display} sector with relevant domain expertise.",
+            f"{entity_name} serves as {role.lower()}, contributing to {domain_display} initiatives and operations.",
+        ]
+        return templates[index % len(templates)]
+
+    if label in _ORGANIZATION_LABELS:
+        pool = DOMAIN_INDUSTRY_POOL.get(domain_id, _INDUSTRY_POOL) if domain_id else _INDUSTRY_POOL
+        industry = pool[index % len(pool)]
+        templates = [
+            f"{entity_name} is a {industry.lower()} organization operating in the {domain_display} space.",
+            f"{industry} entity {entity_name}, providing services and resources for {domain_display} operations.",
+            f"{entity_name} — a {industry.lower()} institution active in {domain_display}.",
+        ]
+        return templates[index % len(templates)]
+
+    # Default for events, objects, and domain-specific labels
+    templates = [
+        f"{entity_name} — {label.lower()} record tracked in the {domain_display} knowledge graph.",
+        f"{label} entity: {entity_name}, relevant to ongoing {domain_display} operations.",
+        f"Record for {entity_name}, a {label.lower()} in the {domain_display} domain.",
+    ]
+    return templates[index % len(templates)]
+
+
 def generate_property_value(
     prop_name: str,
     prop_type: str,
@@ -802,7 +944,8 @@ def generate_property_value(
         pool = DOMAIN_ROLE_POOL.get(domain_id, _ROLE_POOL) if domain_id else _ROLE_POOL
         return pool[index % len(pool)]
     if name_lower == "industry":
-        return _INDUSTRY_POOL[index % len(_INDUSTRY_POOL)]
+        pool = DOMAIN_INDUSTRY_POOL.get(domain_id, _INDUSTRY_POOL) if domain_id else _INDUSTRY_POOL
+        return pool[index % len(pool)]
     if name_lower == "latitude" or name_lower == "lat":
         return generate_latitude()
     if name_lower == "longitude" or name_lower in ("lon", "lng"):
@@ -864,12 +1007,7 @@ def generate_property_value(
     # Handle by type
     if prop_type in ("string", "str"):
         if name_lower in _DESCRIPTION_PROPERTIES:
-            _desc_templates = [
-                f"Comprehensive {label.lower()} profile for {entity_name}.",
-                f"{entity_name} — detailed {label.lower()} information and attributes.",
-                f"Full {label.lower()} data for {entity_name}, including key metrics and history.",
-            ]
-            return _desc_templates[index % len(_desc_templates)]
+            return _generate_description(label, entity_name, domain_id, index)
         if any(id_word in name_lower for id_word in ("_id", "code", "number", "identifier")):
             prefix = LABEL_ID_PREFIXES.get(label, label[:3].upper())
             return generate_id(prefix, index)

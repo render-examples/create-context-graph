@@ -253,6 +253,19 @@ class TestV060CLIFlags:
         assert result.exit_code == 0
         assert "Dry run" in result.output
 
+    def test_no_project_name_auto_generates_slug(self, runner, tmp_path):
+        """When PROJECT_NAME is omitted but --domain and --framework are provided, auto-generate slug."""
+        out = tmp_path / "auto-slug"
+        result = runner.invoke(main, [
+            "--domain", "healthcare",
+            "--framework", "pydanticai",
+            "--output-dir", str(out),
+            "--dry-run",
+        ])
+        assert result.exit_code == 0, result.output
+        assert "Dry run" in result.output
+        assert "healthcare-pydanticai-app" in result.output
+
     def test_google_api_key_flag(self, runner, tmp_path):
         """--google-api-key should flow through to rendered .env."""
         out = tmp_path / "gkey-test"

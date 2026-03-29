@@ -453,6 +453,30 @@ agent_tools:
         type: string
         description: Name of the itinerary to calculate budget for
 
+  - name: list_destinations
+    description: "List destination records with optional limit"
+    cypher: |
+      MATCH (n:Destination)
+      RETURN n
+      ORDER BY n.name
+      LIMIT toInteger($limit)
+    parameters:
+      - name: limit
+        type: string
+        description: "Maximum number of results to return (default: 10)"
+
+  - name: get_destination_by_id
+    description: "Get a specific destination by ID with all connections"
+    cypher: |
+      MATCH (n:Destination {destination_id: $id})
+      OPTIONAL MATCH (n)-[r]-(related)
+      RETURN n, type(r) AS relationship, labels(related) AS related_labels, related.name AS related_name
+      LIMIT 50
+    parameters:
+      - name: id
+        type: string
+        description: "The destination_id to look up"
+
 system_prompt: |
   You are an AI travel planning assistant with access to a knowledge graph of
   destinations, hotels, activities, restaurants, itineraries, and traveler reviews.

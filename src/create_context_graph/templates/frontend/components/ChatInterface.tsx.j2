@@ -29,6 +29,8 @@ interface Message {
 
 interface ChatInterfaceProps {
   onGraphUpdate?: (data: GraphData) => void;
+  externalInput?: string | null;
+  onExternalInputConsumed?: () => void;
 }
 
 const STORAGE_KEY = `ccg-chat-history-${DOMAIN.id}`;
@@ -42,6 +44,17 @@ const THINKING_PATTERNS = [
   /^let me find /i, /^now i'll /i, /^now i need /i,
 ];
 
+// Patterns for lines that continue a thinking block (e.g., "and then...", "also...")
+const CONTINUATION_PATTERNS = [
+  /^(and |also |then |additionally |next |finally )/i,
+  /^(this will |this should |this means |that way )/i,
+  /^(so |because |since |in order to )/i,
+  /^(after that |once |before )/i,
+];
+
+// Lines with markdown formatting indicate actual response content
+const MARKDOWN_LINE = /^(#{1,6} |[-*] |\d+\. |\|)/;
+
 function splitThinkingAndResponse(text: string): { thinking: string; response: string } {
   // Don't split if text contains error indicators
   if (/\berror\b/i.test(text) || /\bfailed\b/i.test(text) || /\bsyntax error\b/i.test(text)) {
@@ -52,13 +65,27 @@ function splitThinkingAndResponse(text: string): { thinking: string; response: s
   const thinkingLines: string[] = [];
   const responseLines: string[] = [];
   let foundResponse = false;
+  let inThinkingBlock = false;
 
   for (const line of lines) {
     const trimmed = line.trim();
     if (!foundResponse && trimmed && THINKING_PATTERNS.some((p) => p.test(trimmed))) {
       thinkingLines.push(line);
+      inThinkingBlock = true;
+    } else if (
+      inThinkingBlock &&
+      !foundResponse &&
+      trimmed &&
+      !MARKDOWN_LINE.test(trimmed) &&
+      (CONTINUATION_PATTERNS.some((p) => p.test(trimmed)) || trimmed.length < 80)
+    ) {
+      // Short continuation lines within a thinking block
+      thinkingLines.push(line);
     } else {
-      if (trimmed) foundResponse = true;
+      if (trimmed) {
+        foundResponse = true;
+        inThinkingBlock = false;
+      }
       responseLines.push(line);
     }
   }
@@ -92,7 +119,7 @@ function loadStoredSessionId(): string | null {
   }
 }
 
-export function ChatInterface({ onGraphUpdate }: ChatInterfaceProps) {
+export function ChatInterface({ onGraphUpdate, externalInput, onExternalInputConsumed }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -112,6 +139,14 @@ export function ChatInterface({ onGraphUpdate }: ChatInterfaceProps) {
     setSessionId(loadStoredSessionId());
     setHydrated(true);
   }, []);
+
+  // Handle external input from graph "Ask about this" button
+  useEffect(() => {
+    if (externalInput && !loading) {
+      sendMessage(externalInput);
+      onExternalInputConsumed?.();
+    }
+  }, [externalInput]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -380,6 +415,7 @@ export function ChatInterface({ onGraphUpdate }: ChatInterfaceProps) {
                   textAlign="start"
                   height="auto"
                   py={1.5}
+                  maxW="320px"
                   onClick={() => sendMessage(prompt)}
                   title={prompt}
                 >
@@ -562,7 +598,7 @@ export function ChatInterface({ onGraphUpdate }: ChatInterfaceProps) {
             py={2}
           />
           <HStack px={2} py={1.5} justify="space-between">
-            <Text fontSize="xs" color="gray.400">
+            <Text fontSize="xs" color="gray.400" display={{ base: "none", sm: "block" }}>
               Enter to send, Shift+Enter for new line
             </Text>
             <IconButton

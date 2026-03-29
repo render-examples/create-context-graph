@@ -462,6 +462,30 @@ agent_tools:
         type: string
         description: Provider ID
 
+  - name: list_patients
+    description: "List Patient records with optional limit"
+    cypher: |
+      MATCH (n:Patient)
+      RETURN n
+      ORDER BY n.name
+      LIMIT toInteger($limit)
+    parameters:
+      - name: limit
+        type: string
+        description: "Maximum number of results to return (default: 10)"
+
+  - name: get_patient_by_id
+    description: "Get a specific Patient by ID with all connections"
+    cypher: |
+      MATCH (n:Patient {patient_id: $id})
+      OPTIONAL MATCH (n)-[r]-(related)
+      RETURN n, type(r) AS relationship, labels(related) AS related_labels, related.name AS related_name
+      LIMIT 50
+    parameters:
+      - name: id
+        type: string
+        description: "The patient_id to look up"
+
 system_prompt: |
   You are an AI clinical intelligence assistant with access to a comprehensive
   knowledge graph of healthcare data. You help clinicians, care coordinators,
