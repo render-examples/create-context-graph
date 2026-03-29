@@ -98,6 +98,13 @@
   font-size: 0.9em;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .cursor {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 /* Success phase */
 .success {
   color: var(--color-terminal-green, #4ADE80);

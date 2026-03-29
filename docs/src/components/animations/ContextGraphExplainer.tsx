@@ -94,6 +94,13 @@ function getNodePos(id: string): { cx: number; cy: number } {
   return node || { cx: 0, cy: 0 };
 }
 
+const TITLE_CLASS_MAP: Record<string, string> = {
+  short: styles.memoryTitleShort,
+  long: styles.memoryTitleLong,
+  reasoning: styles.memoryTitleReasoning,
+  full: styles.memoryTitleFull,
+};
+
 export function ContextGraphExplainer() {
   const reducedMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -248,7 +255,7 @@ export function ContextGraphExplainer() {
                 >
                   {layer.badge}
                 </div>
-                <h3 className={styles.memoryTitle} style={{ color: layer.color }}>
+                <h3 className={`${styles.memoryTitle} ${TITLE_CLASS_MAP[layer.key]}`}>
                   {layer.title}
                 </h3>
                 <p className={styles.memoryDescription}>{layer.description}</p>
@@ -296,7 +303,7 @@ function GraphLayer({
                 x={(from.cx + to.cx) / 2}
                 y={(from.cy + to.cy) / 2 - 5}
                 fill={color}
-                fontSize={7}
+                fontSize={9}
                 textAnchor="middle"
                 fontFamily="JetBrains Mono, monospace"
                 opacity={0.5}
@@ -322,7 +329,7 @@ function GraphLayer({
             x={node.cx}
             y={node.cy + 4}
             fill="rgba(0,0,0,0.7)"
-            fontSize={8}
+            fontSize={10}
             textAnchor="middle"
             fontFamily="Inter, sans-serif"
             fontWeight={600}

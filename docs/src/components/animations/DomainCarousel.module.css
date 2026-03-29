@@ -61,6 +61,8 @@
   flex-shrink: 0;
   width: 280px;
   perspective: 800px;
+  content-visibility: auto;
+  contain-intrinsic-size: 280px 220px;
 }
 
 .card {
@@ -210,5 +212,15 @@
 
   .title {
     font-size: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+
+  .card:hover {
+    transform: none;
   }
 }

@@ -89,6 +89,11 @@
   margin-bottom: 0.5rem;
 }
 
+.memoryTitleShort { color: var(--color-mem-short-text); }
+.memoryTitleLong { color: var(--color-mem-long-text); }
+.memoryTitleReasoning { color: var(--color-mem-reasoning-text); }
+.memoryTitleFull { color: var(--color-primary-labs); }
+
 .memoryDescription {
   font-size: 1rem;
   line-height: 1.6;
@@ -183,7 +188,7 @@
   }
 
   .graphSvg {
-    max-width: 320px;
+    max-width: 100%;
   }
 
   .staticCards {

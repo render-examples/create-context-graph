@@ -1,6 +1,6 @@
 .container {
-  width: 900px;
-  max-width: 100%;
+  max-width: 900px;
+  width: 100%;
 }
 
 .panels {
@@ -155,6 +155,18 @@
   align-items: center;
   justify-content: center;
   font-weight: 600;
+}
+
+/* Responsive: 2-column layout on tablet */
+@media (max-width: 900px) and (min-width: 769px) {
+  .panels {
+    grid-template-columns: 1fr 1.2fr;
+    height: 320px;
+  }
+
+  .detailPanel {
+    display: none;
+  }
 }
 
 /* Responsive: collapse to single panel on mobile */
