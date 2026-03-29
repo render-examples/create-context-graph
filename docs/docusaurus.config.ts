@@ -4,7 +4,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'Create Context Graph',
-  tagline: 'AI agents with graph memory, scaffolded in minutes',
+  tagline: 'AI agents with graph memory, scaffolded in seconds',
   favicon: 'img/favicon.ico',
 
   future: {

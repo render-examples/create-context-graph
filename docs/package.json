@@ -17,6 +17,9 @@
   "dependencies": {
     "@docusaurus/core": "3.9.2",
     "@docusaurus/preset-classic": "3.9.2",
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/jetbrains-mono": "^5.2.8",
+    "@fontsource/syne": "^5.2.7",
     "@mdx-js/react": "^3.0.0",
     "@vercel/analytics": "^2.0.1",
     "clsx": "^2.0.0",
