@@ -1,70 +1,58 @@
 import type { ReactNode } from "react";
+import { useState, lazy, Suspense } from "react";
 import Link from "@docusaurus/Link";
 import Layout from "@theme/Layout";
-import { motion } from "framer-motion";
-import { AnimatedGraphBanner } from "@site/src/components/AnimatedGraphBanner";
-import {
-  TerminalCommand,
-  TerminalBlock,
-} from "@site/src/components/TerminalCommand";
+import { motion, AnimatePresence } from "framer-motion";
+
+import { TerminalAnimation } from "@site/src/components/animations/TerminalAnimation";
+import { HERO_COPY, SECTION_COPY } from "@site/src/data/animation-config";
+import { Terminal } from "@site/src/components/ui/Terminal";
 
 import styles from "./index.module.css";
 
-// Feature card data
-const FEATURES: {
-  icon: string;
-  title: string;
-  description: string;
-  accent: string;
-}[] = [
-  {
-    icon: "🏥",
-    title: "22 Industry Domains",
-    description:
-      "Healthcare, financial services, manufacturing, and 19 more. Each with a complete ontology, demo data, and agent tools.",
-    accent: "#22c55e",
-  },
-  {
-    icon: "🤖",
-    title: "8 Agent Frameworks",
-    description:
-      "PydanticAI, Claude Agent SDK, LangGraph, CrewAI, and more. Pick your framework, get a working agent.",
-    accent: "#3b82f6",
-  },
-  {
-    icon: "📄",
-    title: "Rich Demo Data",
-    description:
-      "LLM-generated entities, professional documents, and multi-step decision traces. Ready to explore out of the box.",
-    accent: "#a855f7",
-  },
-  {
-    icon: "🔗",
-    title: "Graph Visualization",
-    description:
-      "Interactive NVL graph explorer with entity detail panel. Click any node to see properties and connections.",
-    accent: "#f97316",
-  },
-  {
-    icon: "⚡",
-    title: "SaaS Connectors",
-    description:
-      "Import from GitHub, Slack, Gmail, Jira, Notion, and Salesforce. Or generate synthetic data.",
-    accent: "#eab308",
-  },
-  {
-    icon: "✨",
-    title: "Custom Domains",
-    description:
-      "Describe your domain in plain English. The LLM generates a complete ontology, tools, and data.",
-    accent: "#ec4899",
-  },
-];
+// Lazy-load below-fold sections for performance
+const AppPreview = lazy(() =>
+  import("@site/src/components/animations/AppPreview").then((m) => ({
+    default: m.AppPreview,
+  }))
+);
+const ContextGraphExplainer = lazy(() =>
+  import("@site/src/components/animations/ContextGraphExplainer").then((m) => ({
+    default: m.ContextGraphExplainer,
+  }))
+);
+const DomainCarousel = lazy(() =>
+  import("@site/src/components/animations/DomainCarousel").then((m) => ({
+    default: m.DomainCarousel,
+  }))
+);
+const FrameworkGrid = lazy(() =>
+  import("@site/src/components/animations/FrameworkGrid").then((m) => ({
+    default: m.FrameworkGrid,
+  }))
+);
+const HowItWorks = lazy(() =>
+  import("@site/src/components/animations/HowItWorks").then((m) => ({
+    default: m.HowItWorks,
+  }))
+);
+const TrustBar = lazy(() =>
+  import("@site/src/components/animations/TrustBar").then((m) => ({
+    default: m.TrustBar,
+  }))
+);
+
+function SectionPlaceholder({ height = "50vh" }: { height?: string }) {
+  return <div style={{ minHeight: height }} />;
+}
+
+// --- Hero Section ---
 
 function HeroSection(): ReactNode {
+  const [showPreview, setShowPreview] = useState(false);
+
   return (
     <section className={styles.hero}>
-      <AnimatedGraphBanner />
       <div className={styles.heroContent}>
         <motion.h1
           className={styles.title}
@@ -72,8 +60,7 @@ function HeroSection(): ReactNode {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7 }}
         >
-          Create{" "}
-          <span className={styles.titleGradient}>Context Graph</span>
+          {HERO_COPY.headline}
         </motion.h1>
 
         <motion.p
@@ -82,116 +69,116 @@ function HeroSection(): ReactNode {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.3 }}
         >
-          AI agents with graph memory, scaffolded in minutes
+          {HERO_COPY.subheadline}
         </motion.p>
 
-        <TerminalCommand command="uvx create-context-graph" large />
-
         <motion.div
+          className={styles.ctaRow}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1.2 }}
+          transition={{ delay: 0.5 }}
         >
-          <Link className={styles.secondaryCta} to="/docs/intro">
-            Read the docs →
+          <Link className={styles.ctaPrimary} to={HERO_COPY.ctaPrimaryHref}>
+            {HERO_COPY.ctaPrimary}
+          </Link>
+          <Link
+            className={styles.ctaSecondary}
+            to={HERO_COPY.ctaSecondaryHref}
+          >
+            {HERO_COPY.ctaSecondary} &rarr;
           </Link>
         </motion.div>
+
+        {/* Terminal / App Preview crossfade */}
+        <div className={styles.heroAnimation}>
+          <AnimatePresence mode="wait">
+            {!showPreview ? (
+              <motion.div
+                key="terminal"
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.4 }}
+              >
+                <TerminalAnimation
+                  onComplete={() => setShowPreview(true)}
+                />
+              </motion.div>
+            ) : (
+              <Suspense
+                fallback={<SectionPlaceholder height="400px" />}
+              >
+                <motion.div
+                  key="preview"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.6 }}
+                >
+                  <AppPreview />
+                </motion.div>
+              </Suspense>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {showPreview && (
+          <motion.p
+            className={styles.previewLabel}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+          >
+            {SECTION_COPY.appPreview}
+          </motion.p>
+        )}
       </div>
     </section>
   );
 }
 
-function FeaturesSection(): ReactNode {
+// --- Bottom CTA Section ---
+
+function BottomCTA(): ReactNode {
   return (
-    <section className={styles.features}>
-      <div className={styles.featuresInner}>
-        <h2 className={styles.featuresTitle}>Everything you need</h2>
-        <p className={styles.featuresSubtitle}>
-          From domain ontology to running full-stack app in one command
-        </p>
-        <div className={styles.featureGrid}>
-          {FEATURES.map((feature, i) => (
-            <motion.div
-              key={feature.title}
-              className={styles.featureCard}
-              style={
-                { "--card-accent": feature.accent } as React.CSSProperties
-              }
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: i * 0.1 }}
-            >
-              <span className={styles.featureIcon}>{feature.icon}</span>
-              <h3 className={styles.featureCardTitle}>{feature.title}</h3>
-              <p className={styles.featureCardDesc}>{feature.description}</p>
-            </motion.div>
-          ))}
+    <section className={styles.bottomCta}>
+      <div className={styles.bottomCtaInner}>
+        <motion.h2
+          className={styles.bottomCtaTitle}
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+        >
+          {SECTION_COPY.bottomCta}
+        </motion.h2>
+
+        <Terminal
+          title="create-context-graph"
+          maxWidth={560}
+          copyCommand="uvx create-context-graph"
+        >
+          <span style={{ color: "var(--color-terminal-purple)" }}>$ </span>
+          <span style={{ color: "var(--color-terminal-green)" }}>
+            uvx create-context-graph
+          </span>
+          <span className={styles.blinkingCursor} />
+        </Terminal>
+
+        <div className={styles.ctaRow}>
+          <Link className={styles.ctaPrimary} to={HERO_COPY.ctaPrimaryHref}>
+            {HERO_COPY.ctaPrimary}
+          </Link>
+          <Link
+            className={styles.ctaSecondary}
+            to={HERO_COPY.ctaSecondaryHref}
+          >
+            {HERO_COPY.ctaSecondary} &rarr;
+          </Link>
         </div>
       </div>
     </section>
   );
 }
 
-function QuickStartSection(): ReactNode {
-  return (
-    <section className={styles.quickstart}>
-      <div className={styles.quickstartInner}>
-        <h2 className={styles.quickstartTitle}>Up and running in 2 minutes</h2>
-        <p className={styles.quickstartSubtitle}>
-          Scaffold, install, seed, and start
-        </p>
-        <TerminalBlock
-          lines={[
-            {
-              text: "$ uvx create-context-graph my-app --domain healthcare --framework pydanticai --demo-data",
-              color: "#22c55e",
-            },
-            { text: "" },
-            { text: "$ cd my-app && make install && make docker-up && make seed && make start", color: "#60a5fa" },
-            { text: "" },
-            {
-              text: "  🏥 Healthcare Context Graph is ready!",
-              color: "#a855f7",
-            },
-            {
-              text: "  Backend:  http://localhost:8000",
-              color: "rgba(255,255,255,0.5)",
-            },
-            {
-              text: "  Frontend: http://localhost:3000",
-              color: "rgba(255,255,255,0.5)",
-            },
-          ]}
-        />
-      </div>
-    </section>
-  );
-}
-
-function FooterCTA(): ReactNode {
-  return (
-    <section className={styles.footerCta}>
-      <div className={styles.footerCtaInner}>
-        <motion.h2
-          className={styles.footerCtaTitle}
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          Ready to build?
-        </motion.h2>
-
-        <TerminalCommand command="uvx create-context-graph" />
-
-        <Link className={styles.secondaryCta} to="/docs/intro">
-          Read the docs →
-        </Link>
-      </div>
-    </section>
-  );
-}
+// --- Main Page ---
 
 export default function Home(): ReactNode {
   return (
@@ -200,9 +187,28 @@ export default function Home(): ReactNode {
       description="Interactive CLI scaffolding tool that generates domain-specific context graph applications with Neo4j"
     >
       <HeroSection />
-      <FeaturesSection />
-      <QuickStartSection />
-      <FooterCTA />
+
+      <Suspense fallback={<SectionPlaceholder />}>
+        <ContextGraphExplainer />
+      </Suspense>
+
+      <Suspense fallback={<SectionPlaceholder />}>
+        <DomainCarousel />
+      </Suspense>
+
+      <Suspense fallback={<SectionPlaceholder />}>
+        <FrameworkGrid />
+      </Suspense>
+
+      <Suspense fallback={<SectionPlaceholder />}>
+        <HowItWorks />
+      </Suspense>
+
+      <Suspense fallback={<SectionPlaceholder height="100px" />}>
+        <TrustBar />
+      </Suspense>
+
+      <BottomCTA />
     </Layout>
   );
 }

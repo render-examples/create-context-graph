@@ -1,224 +1,195 @@
-/* Hero section */
+/* ===== Hero Section ===== */
 .hero {
   position: relative;
-  min-height: 90vh;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   background: linear-gradient(135deg, #0a0a1a 0%, #0d1117 40%, #0a1628 100%);
   overflow: hidden;
+  padding: 2rem 0 2rem;
 }
 
 .heroContent {
   position: relative;
   z-index: 2;
   text-align: center;
-  padding: 2rem;
+  padding: 1rem 2rem;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 960px;
 }
 
 .title {
-  font-size: 4rem;
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(1.6rem, 4vw, 2.5rem);
   font-weight: 800;
   color: white;
   letter-spacing: -0.03em;
-  line-height: 1.1;
+  line-height: 1.15;
   margin: 0;
-}
-
-.titleGradient {
-  background: linear-gradient(135deg, #22c55e, #3b82f6, #a855f7);
+  max-width: 600px;
+  background: linear-gradient(135deg, #ffffff 30%, #A5B4FC);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .tagline {
-  font-size: 1.25rem;
-  color: rgba(255, 255, 255, 0.6);
-  max-width: 500px;
-  line-height: 1.6;
+  font-size: clamp(0.85rem, 1.8vw, 1rem);
+  color: rgba(255, 255, 255, 0.55);
+  max-width: 520px;
+  line-height: 1.5;
   margin: 0;
 }
 
-.secondaryCta {
+.ctaRow {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.ctaPrimary {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 24px;
+  background: var(--color-primary-labs, #6366F1);
+  color: white;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.ctaPrimary:hover {
+  background: var(--color-primary-labs-dark, #4F46E5);
+  color: white;
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.ctaSecondary {
   color: rgba(255, 255, 255, 0.5);
   text-decoration: none;
   font-size: 0.9rem;
   transition: color 0.2s;
 }
 
-.secondaryCta:hover {
+.ctaSecondary:hover {
   color: white;
+  text-decoration: none;
 }
 
-/* Features section */
-.features {
-  padding: 5rem 2rem;
-  background: var(--ifm-background-color);
+.heroAnimation {
+  width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
-.featuresInner {
-  max-width: 1100px;
-  margin: 0 auto;
-}
-
-.featuresTitle {
-  text-align: center;
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-}
-
-.featuresSubtitle {
-  text-align: center;
-  color: var(--ifm-color-emphasis-600);
-  margin-bottom: 3rem;
-  font-size: 1.1rem;
-}
-
-.featureGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
-}
-
-.featureCard {
-  border-radius: 12px;
-  padding: 1.5rem;
-  background: var(--ifm-background-surface-color);
-  border: 1px solid var(--ifm-color-emphasis-200);
-  transition: transform 0.2s, box-shadow 0.2s;
-  border-top: 3px solid var(--card-accent, var(--ifm-color-primary));
-}
-
-.featureCard:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-}
-
-.featureIcon {
-  font-size: 1.8rem;
-  margin-bottom: 0.75rem;
-  display: block;
-}
-
-.featureCardTitle {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-}
-
-.featureCardDesc {
-  font-size: 0.9rem;
-  color: var(--ifm-color-emphasis-600);
-  line-height: 1.6;
+.previewLabel {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.35);
+  font-style: italic;
   margin: 0;
 }
 
-/* Quick Start section */
-.quickstart {
-  padding: 5rem 2rem;
-  background: var(--ifm-background-surface-color);
-}
-
-.quickstartInner {
-  max-width: 800px;
-  margin: 0 auto;
-  text-align: center;
-}
-
-.quickstartTitle {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-}
-
-.quickstartSubtitle {
-  color: var(--ifm-color-emphasis-600);
-  margin-bottom: 2.5rem;
-  font-size: 1.1rem;
-}
-
-/* Footer CTA */
-.footerCta {
+/* ===== Bottom CTA Section ===== */
+.bottomCta {
   padding: 5rem 2rem;
   text-align: center;
   background: linear-gradient(135deg, #0a0a1a 0%, #0d1117 100%);
 }
 
-.footerCtaTitle {
-  font-size: 2rem;
-  font-weight: 700;
-  color: white;
-  margin-bottom: 1.5rem;
-}
-
-.footerCtaInner {
+.bottomCtaInner {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1.5rem;
+  max-width: 600px;
+  margin: 0 auto;
 }
 
-/* Responsive: tablet */
-@media (max-width: 996px) {
-  .featureGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .title {
-    font-size: 3rem;
-  }
+.bottomCtaTitle {
+  font-family: 'Syne', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  color: white;
+  margin: 0;
 }
 
-/* Responsive: mobile */
-@media (max-width: 640px) {
+/* Blinking cursor for bottom CTA terminal */
+.blinkingCursor {
+  display: inline-block;
+  width: 8px;
+  height: 1.1em;
+  background: var(--color-terminal-green, #4ADE80);
+  vertical-align: text-bottom;
+  margin-left: 2px;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* ===== Light mode overrides ===== */
+[data-theme="light"] .hero {
+  background: linear-gradient(135deg, #f8f9fb 0%, #eef1f6 40%, #e8ecf4 100%);
+}
+
+[data-theme="light"] .title {
+  background: linear-gradient(135deg, #1a1a2e 30%, #6366F1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+[data-theme="light"] .tagline {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="light"] .ctaSecondary {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="light"] .ctaSecondary:hover {
+  color: rgba(0, 0, 0, 0.8);
+}
+
+[data-theme="light"] .bottomCta {
+  background: linear-gradient(135deg, #f8f9fb 0%, #eef1f6 100%);
+}
+
+[data-theme="light"] .bottomCtaTitle {
+  color: #1a1a2e;
+}
+
+[data-theme="light"] .previewLabel {
+  color: rgba(0, 0, 0, 0.3);
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
   .hero {
-    min-height: 80vh;
+    padding: 1.5rem 0 1rem;
   }
 
   .heroContent {
-    padding: 1.5rem 1rem;
-    gap: 1.25rem;
+    padding: 0.75rem 1rem;
+    gap: 0.5rem;
   }
 
-  .title {
-    font-size: 2.2rem;
-  }
-
-  .tagline {
-    font-size: 1rem;
-  }
-
-  .featureGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .features {
+  .bottomCta {
     padding: 3rem 1.25rem;
   }
 
-  .featuresTitle {
-    font-size: 1.5rem;
-  }
-
-  .quickstart {
-    padding: 3rem 1.25rem;
-  }
-
-  .quickstartTitle {
-    font-size: 1.5rem;
-  }
-
-  .footerCta {
-    padding: 3rem 1.25rem;
-  }
-
-  .footerCtaTitle {
+  .bottomCtaTitle {
     font-size: 1.5rem;
   }
 }
