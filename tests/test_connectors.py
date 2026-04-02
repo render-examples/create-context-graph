@@ -1247,7 +1247,7 @@ class TestLinearConnector:
         conn.authenticate({"api_key": "test"})
         # Use a small max_pages to keep test fast
         users = conn._paginate(
-            f"query FetchUsers($cursor: String) {{ users(first: 100, after: $cursor) {{ pageInfo {{ hasNextPage endCursor }} nodes {{ id name displayName email admin active }} }} }}",
+            "query FetchUsers($cursor: String) { users(first: 100, after: $cursor) { pageInfo { hasNextPage endCursor } nodes { id name displayName email admin active } } }",
             {}, ["users"], max_pages=3,
         )
         assert len(users) == 3
