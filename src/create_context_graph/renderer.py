@@ -59,6 +59,74 @@ def _to_kebab_case(value: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Google Workspace connector agent tools (injected when connector is active)
+# ---------------------------------------------------------------------------
+
+_GWS_AGENT_TOOLS: list[dict] = [
+    {
+        "name": "find_decisions",
+        "description": "Search for resolved comment threads (decisions) by keyword, document, person, or time range. Returns the question, deliberation, resolution, and participants.",
+        "cypher": "MATCH (dt:DecisionThread {resolved: true})-[:HAS_COMMENT_THREAD]-(doc:Document) WHERE toLower(dt.content) CONTAINS toLower($keyword) OR toLower(doc.name) CONTAINS toLower($keyword) OPTIONAL MATCH (dt)-[:AUTHORED_BY]->(p:Person) RETURN dt.name AS decision, dt.content AS question, dt.resolution AS resolution, doc.name AS document, collect(DISTINCT p.name) AS participants LIMIT 10",
+        "parameters": [{"name": "keyword", "type": "string", "required": True}],
+    },
+    {
+        "name": "decision_context",
+        "description": "Given a topic or issue identifier, find all decision threads, meetings, and email threads that provide context for how and why a decision was made.",
+        "cypher": "MATCH (dt:DecisionThread) WHERE toLower(dt.content) CONTAINS toLower($topic) OPTIONAL MATCH (dt)-[:HAS_COMMENT_THREAD]-(doc:Document) OPTIONAL MATCH (doc)-[:DISCUSSED_IN]-(m:Meeting) OPTIONAL MATCH (dt)-[:RELATES_TO_ISSUE]->(issue) RETURN dt.name AS decision, dt.resolution AS resolution, doc.name AS document, m.name AS meeting, issue.name AS related_issue LIMIT 15",
+        "parameters": [{"name": "topic", "type": "string", "required": True}],
+    },
+    {
+        "name": "who_decided",
+        "description": "Find the people involved in decisions about a specific document, project, or topic, weighted by participation frequency.",
+        "cypher": "MATCH (p:Person)<-[:AUTHORED_BY|RESOLVED_BY]-(dt:DecisionThread)-[:HAS_COMMENT_THREAD]-(doc:Document) WHERE toLower(doc.name) CONTAINS toLower($topic) OR toLower(dt.content) CONTAINS toLower($topic) RETURN p.name AS person, p.emailAddress AS email, count(DISTINCT dt) AS decision_count ORDER BY decision_count DESC LIMIT 10",
+        "parameters": [{"name": "topic", "type": "string", "required": True}],
+    },
+    {
+        "name": "document_timeline",
+        "description": "Show the complete history of a document: creation, edits, comments, decisions, and related meetings in chronological order.",
+        "cypher": "MATCH (doc:Document) WHERE toLower(doc.name) CONTAINS toLower($document_name) OPTIONAL MATCH (doc)-[:HAS_REVISION]->(rev:Revision) OPTIONAL MATCH (doc)-[:HAS_COMMENT_THREAD]->(dt:DecisionThread) OPTIONAL MATCH (doc)-[:DISCUSSED_IN]-(m:Meeting) WITH doc, collect(DISTINCT {type: 'revision', name: rev.name, time: rev.modifiedTime}) AS revisions, collect(DISTINCT {type: 'decision', name: dt.name, resolved: dt.resolved, time: dt.createdTime}) AS decisions, collect(DISTINCT {type: 'meeting', name: m.name, time: m.startTime}) AS meetings RETURN doc.name AS document, revisions, decisions, meetings LIMIT 5",
+        "parameters": [{"name": "document_name", "type": "string", "required": True}],
+    },
+    {
+        "name": "open_questions",
+        "description": "Find unresolved comment threads across all documents, optionally filtered by document name. Surfaces decisions still pending.",
+        "cypher": "MATCH (dt:DecisionThread {resolved: false})-[:HAS_COMMENT_THREAD]-(doc:Document) WHERE $filter = '' OR toLower(doc.name) CONTAINS toLower($filter) OPTIONAL MATCH (dt)-[:AUTHORED_BY]->(p:Person) RETURN dt.name AS thread, dt.content AS question, doc.name AS document, p.name AS author, dt.createdTime AS created ORDER BY dt.createdTime DESC LIMIT 15",
+        "parameters": [{"name": "filter", "type": "string", "required": False, "default": ""}],
+    },
+    {
+        "name": "meeting_decisions",
+        "description": "Given a meeting or event name, find all documents that were discussed and any decision threads that were created or resolved around the meeting time.",
+        "cypher": "MATCH (m:Meeting) WHERE toLower(m.summary) CONTAINS toLower($meeting_name) OPTIONAL MATCH (m)<-[:DISCUSSED_IN]-(doc:Document) OPTIONAL MATCH (doc)-[:HAS_COMMENT_THREAD]->(dt:DecisionThread) OPTIONAL MATCH (m)<-[:ATTENDEE_OF]-(p:Person) RETURN m.name AS meeting, m.startTime AS time, collect(DISTINCT doc.name) AS documents, collect(DISTINCT {decision: dt.name, resolved: dt.resolved}) AS decisions, collect(DISTINCT p.name) AS attendees LIMIT 5",
+        "parameters": [{"name": "meeting_name", "type": "string", "required": True}],
+    },
+    {
+        "name": "knowledge_contributors",
+        "description": "Identify the top contributors to a folder or project by combining authorship (revisions), decision participation (comments), and meeting attendance.",
+        "cypher": "MATCH (p:Person) WHERE EXISTS { MATCH (p)<-[:REVISED_BY]-(:Revision)<-[:HAS_REVISION]-(:Document) } OR EXISTS { MATCH (p)<-[:AUTHORED_BY]-(:DecisionThread) } WITH p OPTIONAL MATCH (p)<-[:REVISED_BY]-(rev:Revision) WITH p, count(DISTINCT rev) AS revision_count OPTIONAL MATCH (p)<-[:AUTHORED_BY]-(dt:DecisionThread) WITH p, revision_count, count(DISTINCT dt) AS decision_count OPTIONAL MATCH (p)-[:ATTENDEE_OF]->(m:Meeting) RETURN p.name AS person, p.emailAddress AS email, revision_count, decision_count, count(DISTINCT m) AS meeting_count, revision_count + decision_count * 2 + count(DISTINCT m) AS total_score ORDER BY total_score DESC LIMIT 10",
+        "parameters": [],
+    },
+    {
+        "name": "trace_decision_to_source",
+        "description": "Given a fact or claim, trace it back through the decision chain: which comment thread established it, which document contains it, who authored it, what meeting preceded it.",
+        "cypher": "MATCH (dt:DecisionThread) WHERE toLower(dt.content) CONTAINS toLower($claim) OR toLower(dt.resolution) CONTAINS toLower($claim) MATCH (dt)-[:HAS_COMMENT_THREAD]-(doc:Document) OPTIONAL MATCH (dt)-[:AUTHORED_BY]->(author:Person) OPTIONAL MATCH (dt)-[:RESOLVED_BY]->(resolver:Person) OPTIONAL MATCH (doc)-[:DISCUSSED_IN]-(m:Meeting) RETURN dt.name AS decision, dt.content AS question, dt.resolution AS resolution, doc.name AS document, author.name AS raised_by, resolver.name AS resolved_by, m.name AS related_meeting LIMIT 5",
+        "parameters": [{"name": "claim", "type": "string", "required": True}],
+    },
+    {
+        "name": "stale_documents",
+        "description": "Find documents that haven't been updated recently but have open comment threads or are referenced by active issues.",
+        "cypher": "MATCH (doc:Document) WHERE doc.modifiedTime < datetime() - duration({days: $days_threshold}) AND EXISTS { MATCH (doc)-[:HAS_COMMENT_THREAD]->(:DecisionThread {resolved: false}) } RETURN doc.name AS document, doc.modifiedTime AS last_modified, doc.webViewLink AS link ORDER BY doc.modifiedTime ASC LIMIT 15",
+        "parameters": [{"name": "days_threshold", "type": "integer", "required": False, "default": 30}],
+    },
+    {
+        "name": "cross_reference",
+        "description": "Given a Linear issue identifier (e.g., ENG-123), find all related Google Workspace context: documents that reference it, decisions about it, meetings where it was discussed.",
+        "cypher": "MATCH (context)-[:RELATES_TO_ISSUE]->(issue) WHERE issue.name CONTAINS $identifier OR issue.identifier = $identifier OPTIONAL MATCH (context)-[:HAS_COMMENT_THREAD]-(doc:Document) RETURN context.name AS source, labels(context)[0] AS source_type, issue.name AS issue, doc.name AS document LIMIT 20",
+        "parameters": [{"name": "identifier", "type": "string", "required": True}],
+    },
+]
+
+
+# ---------------------------------------------------------------------------
 # Renderer
 # ---------------------------------------------------------------------------
 
@@ -100,7 +168,7 @@ class ProjectRenderer:
             "domain_entity_types": domain_entity_types,
             "relationships": [r.model_dump() for r in self.ontology.relationships],
             "demo_scenarios": [s.model_dump() for s in self.ontology.demo_scenarios],
-            "agent_tools": [t.model_dump() for t in self.ontology.agent_tools],
+            "agent_tools": self._build_agent_tools(),
             "framework": self.config.resolved_framework,
             "framework_display_name": self.config.framework_display_name,
             "framework_deps": self.config.framework_deps,
@@ -111,12 +179,37 @@ class ProjectRenderer:
             "anthropic_api_key": self.config.anthropic_api_key or "",
             "openai_api_key": self.config.openai_api_key or "",
             "google_api_key": self.config.google_api_key or "",
-            "system_prompt": self.ontology.system_prompt,
+            "system_prompt": self._build_system_prompt(),
             "cypher_schema": generate_cypher_schema(self.ontology),
             "pydantic_models": generate_pydantic_models(self.ontology),
             "visualization": generate_visualization_config(self.ontology),
             "saas_connectors": self.config.saas_connectors,
         }
+
+    def _build_system_prompt(self) -> str:
+        """Build system prompt, appending connector context if active."""
+        prompt = self.ontology.system_prompt
+        if "google-workspace" in self.config.saas_connectors:
+            prompt += (
+                "\n\nYou also have access to Google Workspace decision context. "
+                "The knowledge graph contains DecisionThread nodes extracted from "
+                "resolved Google Docs comment threads — each represents a decision "
+                "with the question, deliberation, resolution, and participants. "
+                "Use the find_decisions, decision_context, who_decided, and "
+                "open_questions tools to answer questions about why decisions were "
+                "made, who was involved, and what is still pending."
+            )
+        return prompt
+
+    def _build_agent_tools(self) -> list[dict]:
+        """Build agent tools list, including connector-specific tools."""
+        tools = [t.model_dump() for t in self.ontology.agent_tools]
+
+        # Add Google Workspace decision-trace tools when connector is active
+        if "google-workspace" in self.config.saas_connectors:
+            tools.extend(_GWS_AGENT_TOOLS)
+
+        return tools
 
     def _render_template(self, template_name: str, output_path: Path, ctx: dict) -> None:
         """Render a single template to the output path."""
@@ -250,6 +343,7 @@ class ProjectRenderer:
                 "gcal": "gcal_connector",
                 "salesforce": "salesforce_connector",
                 "linear": "linear_connector",
+                "google-workspace": "google_workspace_connector",
             }
             for conn_id in self.config.saas_connectors:
                 template_name = connector_templates.get(conn_id)

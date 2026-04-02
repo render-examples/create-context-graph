@@ -53,9 +53,18 @@ console = Console()
 @click.option("--openai-api-key", envvar="OPENAI_API_KEY", help="OpenAI API key for LLM generation")
 @click.option("--google-api-key", envvar="GOOGLE_API_KEY", help="Google/Gemini API key (required for google-adk framework)")
 @click.option("--custom-domain", type=str, help="Natural language description for custom domain generation (requires --anthropic-api-key)")
-@click.option("--connector", multiple=True, help="SaaS connector to enable (github, slack, jira, notion, gmail, gcal, salesforce, linear)")
+@click.option("--connector", multiple=True, help="SaaS connector to enable (github, slack, jira, notion, gmail, gcal, salesforce, linear, google-workspace)")
 @click.option("--linear-api-key", envvar="LINEAR_API_KEY", help="Linear API key (required for --connector linear)")
 @click.option("--linear-team", envvar="LINEAR_TEAM", help="Linear team key to filter import (e.g., ENG)")
+@click.option("--gws-folder-id", envvar="GWS_FOLDER_ID", help="Google Drive folder ID to scope import")
+@click.option("--gws-include-comments/--gws-no-comments", default=True, help="Import comment threads from Docs/Sheets/Slides")
+@click.option("--gws-include-revisions/--gws-no-revisions", default=True, help="Import revision history metadata")
+@click.option("--gws-include-activity/--gws-no-activity", default=True, help="Import Drive Activity events")
+@click.option("--gws-include-calendar", is_flag=True, default=False, help="Import Calendar events")
+@click.option("--gws-include-gmail", is_flag=True, default=False, help="Import Gmail thread metadata")
+@click.option("--gws-since", help="Import data since date (ISO format, default 90 days ago)")
+@click.option("--gws-mime-types", default="docs,sheets,slides", help="Comma-separated MIME types (docs,sheets,slides,pdf,all)")
+@click.option("--gws-max-files", type=int, default=500, help="Maximum files to import (safety limit)")
 @click.option("--output-dir", type=click.Path(), help="Output directory (default: ./<project-name>)")
 @click.option("--demo", is_flag=True, help="Shortcut for --reset-database --demo-data --ingest")
 @click.option("--dry-run", is_flag=True, help="Preview what would be generated without creating files")
@@ -81,6 +90,15 @@ def main(
     connector: tuple[str, ...],
     linear_api_key: str | None,
     linear_team: str | None,
+    gws_folder_id: str | None,
+    gws_include_comments: bool,
+    gws_include_revisions: bool,
+    gws_include_activity: bool,
+    gws_include_calendar: bool,
+    gws_include_gmail: bool,
+    gws_since: str | None,
+    gws_mime_types: str,
+    gws_max_files: int,
     output_dir: str | None,
     demo: bool,
     dry_run: bool,
@@ -210,6 +228,19 @@ def main(
                     "[yellow]Warning:[/yellow] --connector linear requires a Linear API key. "
                     "Set LINEAR_API_KEY in your .env or pass --linear-api-key."
                 )
+        if "google-workspace" in connector:
+            creds = {
+                "folder_id": gws_folder_id or "",
+                "include_comments": str(gws_include_comments).lower(),
+                "include_revisions": str(gws_include_revisions).lower(),
+                "include_activity": str(gws_include_activity).lower(),
+                "include_calendar": str(gws_include_calendar).lower(),
+                "include_gmail": str(gws_include_gmail).lower(),
+                "since": gws_since or "",
+                "mime_types": gws_mime_types or "",
+                "max_files": str(gws_max_files),
+            }
+            config.saas_credentials["google-workspace"] = creds
         # Warn if google-adk is selected without a Google API key
         if config.resolved_framework == "google-adk" and not google_api_key:
             console.print(

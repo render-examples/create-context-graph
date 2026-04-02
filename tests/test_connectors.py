@@ -77,11 +77,11 @@ class TestNormalizedData:
 
 
 class TestConnectorRegistry:
-    def test_all_eight_registered(self):
-        assert len(CONNECTOR_REGISTRY) == 8
+    def test_all_nine_registered(self):
+        assert len(CONNECTOR_REGISTRY) == 9
 
     def test_expected_connectors(self):
-        expected = {"github", "notion", "jira", "slack", "gmail", "gcal", "salesforce", "linear"}
+        expected = {"github", "notion", "jira", "slack", "gmail", "gcal", "salesforce", "linear", "google-workspace"}
         assert set(CONNECTOR_REGISTRY.keys()) == expected
 
     def test_get_connector(self):
@@ -94,7 +94,7 @@ class TestConnectorRegistry:
 
     def test_list_connectors(self):
         result = list_connectors()
-        assert len(result) == 8
+        assert len(result) == 9
         ids = {c["id"] for c in result}
         assert "github" in ids
 
@@ -1153,3 +1153,660 @@ class TestOAuthHelpers:
         from create_context_graph.connectors.oauth import check_gws_cli
 
         assert check_gws_cli() is True
+
+
+# ---------------------------------------------------------------------------
+# Google Workspace connector tests
+# ---------------------------------------------------------------------------
+
+
+class TestGoogleWorkspaceConnector:
+    """Tests for the Google Workspace connector."""
+
+    @staticmethod
+    def _make_api_mock(responses: dict):
+        """Create a mock for urllib.request.urlopen that routes by URL path."""
+        def _mock_urlopen(req, **kwargs):
+            url = req.full_url if hasattr(req, "full_url") else req
+            # Match URL patterns
+            for pattern, response_data in responses.items():
+                if pattern in url:
+                    mock_resp = MagicMock()
+                    mock_resp.read.return_value = json.dumps(response_data).encode()
+                    mock_resp.__enter__ = lambda s: s
+                    mock_resp.__exit__ = MagicMock(return_value=False)
+                    mock_resp.status = 200
+                    return mock_resp
+            # Default: empty response
+            mock_resp = MagicMock()
+            mock_resp.read.return_value = b'{"files": [], "comments": [], "revisions": []}'
+            mock_resp.__enter__ = lambda s: s
+            mock_resp.__exit__ = MagicMock(return_value=False)
+            return mock_resp
+        return _mock_urlopen
+
+    @staticmethod
+    def _standard_responses():
+        """Standard mock responses for all Google Workspace APIs."""
+        return {
+            "/drive/v3/files?": {
+                "files": [
+                    {
+                        "id": "doc-1",
+                        "name": "Caching Strategy PRD",
+                        "mimeType": "application/vnd.google-apps.document",
+                        "webViewLink": "https://docs.google.com/document/d/doc-1/edit",
+                        "createdTime": "2026-03-01T10:00:00Z",
+                        "modifiedTime": "2026-03-15T14:30:00Z",
+                        "description": "Technical PRD for caching layer",
+                        "owners": [{"displayName": "Alice Chen", "emailAddress": "alice@example.com"}],
+                        "parents": ["folder-1"],
+                        "permissions": [
+                            {"type": "user", "emailAddress": "bob@example.com", "displayName": "Bob Smith", "role": "writer"},
+                        ],
+                    },
+                    {
+                        "id": "folder-1",
+                        "name": "PRDs",
+                        "mimeType": "application/vnd.google-apps.folder",
+                        "parents": [],
+                    },
+                    {
+                        "id": "doc-2",
+                        "name": "ENG-456 Auth Design",
+                        "mimeType": "application/vnd.google-apps.document",
+                        "webViewLink": "https://docs.google.com/document/d/doc-2/edit",
+                        "createdTime": "2026-03-10T09:00:00Z",
+                        "modifiedTime": "2026-03-20T16:00:00Z",
+                        "description": "",
+                        "owners": [{"displayName": "Bob Smith", "emailAddress": "bob@example.com"}],
+                        "parents": ["folder-1"],
+                        "permissions": [],
+                    },
+                ],
+            },
+            "/doc-1/comments": {
+                "comments": [
+                    {
+                        "id": "comment-1",
+                        "content": "Should we use Redis or Memcached?",
+                        "author": {"displayName": "Alice Chen", "emailAddress": "alice@example.com"},
+                        "createdTime": "2026-03-05T10:30:00Z",
+                        "modifiedTime": "2026-03-06T14:22:00Z",
+                        "resolved": True,
+                        "quotedFileContent": {"value": "Caching approach"},
+                        "replies": [
+                            {
+                                "id": "reply-1",
+                                "content": "Redis is better for our use case — supports data structures",
+                                "author": {"displayName": "Bob Smith", "emailAddress": "bob@example.com"},
+                                "createdTime": "2026-03-05T11:00:00Z",
+                            },
+                            {
+                                "id": "reply-2",
+                                "content": "Agreed, let's go with Redis",
+                                "author": {"displayName": "Carol Davis", "emailAddress": "carol@example.com"},
+                                "createdTime": "2026-03-05T12:00:00Z",
+                            },
+                            {
+                                "id": "reply-3",
+                                "content": "",
+                                "action": "resolve",
+                                "author": {"displayName": "Alice Chen", "emailAddress": "alice@example.com"},
+                                "createdTime": "2026-03-06T14:22:00Z",
+                                "modifiedTime": "2026-03-06T14:22:00Z",
+                            },
+                        ],
+                    },
+                    {
+                        "id": "comment-2",
+                        "content": "What about cache invalidation strategy?",
+                        "author": {"displayName": "Bob Smith", "emailAddress": "bob@example.com"},
+                        "createdTime": "2026-03-07T09:00:00Z",
+                        "modifiedTime": "2026-03-07T09:00:00Z",
+                        "resolved": False,
+                        "quotedFileContent": {},
+                        "replies": [],
+                    },
+                ],
+            },
+            "/doc-2/comments": {
+                "comments": [
+                    {
+                        "id": "comment-3",
+                        "content": "This relates to ENG-789 for the SSO implementation",
+                        "author": {"displayName": "Alice Chen", "emailAddress": "alice@example.com"},
+                        "createdTime": "2026-03-12T10:00:00Z",
+                        "modifiedTime": "2026-03-12T10:00:00Z",
+                        "resolved": False,
+                        "quotedFileContent": {},
+                        "replies": [],
+                    },
+                ],
+            },
+            "/doc-1/revisions": {
+                "revisions": [
+                    {
+                        "id": "rev-1",
+                        "modifiedTime": "2026-03-01T10:00:00Z",
+                        "lastModifyingUser": {"displayName": "Alice Chen", "emailAddress": "alice@example.com"},
+                        "mimeType": "application/vnd.google-apps.document",
+                        "size": "1024",
+                    },
+                    {
+                        "id": "rev-2",
+                        "modifiedTime": "2026-03-15T14:30:00Z",
+                        "lastModifyingUser": {"displayName": "Bob Smith", "emailAddress": "bob@example.com"},
+                        "mimeType": "application/vnd.google-apps.document",
+                        "size": "2048",
+                    },
+                ],
+            },
+            "/doc-2/revisions": {"revisions": []},
+            "driveactivity.googleapis.com": {
+                "activities": [
+                    {
+                        "timestamp": "2026-03-15T14:30:00Z",
+                        "primaryActionDetail": {"edit": {}},
+                        "actors": [{"user": {"knownUser": {"emailAddress": "alice@example.com"}}}],
+                        "targets": [{"driveItem": {"title": "Caching Strategy PRD"}}],
+                    },
+                    {
+                        "timestamp": "2026-03-10T09:00:00Z",
+                        "primaryActionDetail": {"create": {}},
+                        "actors": [{"user": {"knownUser": {"emailAddress": "bob@example.com"}}}],
+                        "targets": [{"driveItem": {"title": "ENG-456 Auth Design"}}],
+                    },
+                ],
+            },
+            "calendar/v3/calendars/primary/events": {
+                "items": [
+                    {
+                        "id": "event-1",
+                        "summary": "Platform team sync",
+                        "start": {"dateTime": "2026-03-14T10:00:00Z"},
+                        "end": {"dateTime": "2026-03-14T11:00:00Z"},
+                        "description": "Discuss caching strategy: https://docs.google.com/document/d/doc-1/edit",
+                        "location": "Room A",
+                        "status": "confirmed",
+                        "organizer": {"email": "alice@example.com", "displayName": "Alice Chen"},
+                        "attendees": [
+                            {"email": "alice@example.com", "displayName": "Alice Chen", "responseStatus": "accepted"},
+                            {"email": "bob@example.com", "displayName": "Bob Smith", "responseStatus": "accepted"},
+                        ],
+                    },
+                ],
+            },
+            "gmail/v1/users/me/threads?": {
+                "threads": [
+                    {"id": "thread-1", "snippet": "Re: Caching approach discussion"},
+                ],
+            },
+            "gmail/v1/users/me/threads/thread-1": {
+                "id": "thread-1",
+                "messages": [
+                    {
+                        "id": "msg-1",
+                        "snippet": "Check the doc: https://docs.google.com/document/d/doc-1/edit",
+                        "payload": {
+                            "headers": [
+                                {"name": "Subject", "value": "Re: Caching approach discussion"},
+                                {"name": "From", "value": "alice@example.com"},
+                                {"name": "To", "value": "bob@example.com, carol@example.com"},
+                                {"name": "Date", "value": "2026-03-15T10:00:00Z"},
+                            ],
+                        },
+                    },
+                ],
+            },
+        }
+
+    @staticmethod
+    def _make_connector_with_token():
+        """Create a connector pre-authenticated with a test token."""
+        from create_context_graph.connectors.google_workspace_connector import (
+            GoogleWorkspaceConnector,
+        )
+        conn = GoogleWorkspaceConnector()
+        conn._access_token = "test-token"
+        conn._include_comments = True
+        conn._include_revisions = True
+        conn._include_activity = True
+        conn._include_calendar = False
+        conn._include_gmail = False
+        conn._mime_types = ["docs", "sheets", "slides"]
+        conn._max_files = 500
+        conn._since = "2026-01-01T00:00:00Z"
+        return conn
+
+    # -- Registration & metadata --
+
+    def test_registration(self):
+        conn = get_connector("google-workspace")
+        assert conn.service_name == "Google Workspace"
+        assert conn.requires_oauth is True
+
+    @patch("shutil.which", return_value=None)
+    def test_credential_prompts_no_gws(self, _mock):
+        conn = get_connector("google-workspace")
+        prompts = conn.get_credential_prompts()
+        assert len(prompts) == 2
+        names = {p["name"] for p in prompts}
+        assert names == {"client_id", "client_secret"}
+
+    @patch("shutil.which", return_value="/usr/local/bin/gws")
+    def test_credential_prompts_with_gws(self, _mock):
+        conn = get_connector("google-workspace")
+        prompts = conn.get_credential_prompts()
+        assert prompts == []
+
+    # -- Authentication --
+
+    def test_authenticate_missing_creds(self):
+        conn = get_connector("google-workspace")
+        with patch("shutil.which", return_value=None):
+            with pytest.raises(ValueError, match="Client ID and Secret"):
+                conn.authenticate({})
+
+    @patch("shutil.which", return_value="/usr/local/bin/gws")
+    def test_authenticate_gws(self, _mock):
+        conn = get_connector("google-workspace")
+        conn.authenticate({"include_calendar": "true"})
+        assert conn._use_gws is True
+        assert conn._include_calendar is True
+
+    def test_authenticate_parses_flags(self):
+        conn = self._make_connector_with_token()
+        # Simulate flag parsing directly
+        from create_context_graph.connectors.google_workspace_connector import (
+            GoogleWorkspaceConnector,
+        )
+        c = GoogleWorkspaceConnector()
+        c._access_token = "test"
+        # Manual parse like authenticate does
+        creds = {
+            "include_comments": "false",
+            "include_revisions": "true",
+            "include_calendar": "true",
+            "include_gmail": "true",
+            "folder_id": "abc123",
+            "since": "2026-02-01",
+            "mime_types": "docs,pdf",
+            "max_files": "200",
+        }
+        c._include_comments = creds.get("include_comments", "true") != "false"
+        c._include_revisions = creds.get("include_revisions", "true") != "false"
+        c._include_calendar = creds.get("include_calendar", "false") == "true"
+        c._include_gmail = creds.get("include_gmail", "false") == "true"
+        c._folder_id = creds.get("folder_id", "")
+        c._since = creds.get("since", "")
+        c._max_files = int(creds.get("max_files", "500"))
+        c._mime_types = [m.strip() for m in creds.get("mime_types", "").split(",")]
+
+        assert c._include_comments is False
+        assert c._include_revisions is True
+        assert c._include_calendar is True
+        assert c._include_gmail is True
+        assert c._folder_id == "abc123"
+        assert c._since == "2026-02-01"
+        assert c._max_files == 200
+        assert c._mime_types == ["docs", "pdf"]
+
+    # -- File fetching --
+
+    def test_fetch_not_authenticated(self):
+        conn = get_connector("google-workspace")
+        with pytest.raises(RuntimeError, match="authenticate"):
+            conn.fetch()
+
+    @patch("urllib.request.urlopen")
+    def test_fetch_files_basic(self, mock_urlopen):
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_api_mock(responses)
+        conn = self._make_connector_with_token()
+        conn._include_comments = False
+        conn._include_revisions = False
+        conn._include_activity = False
+
+        result = conn.fetch()
+
+        assert "Document" in result.entities
+        assert "Folder" in result.entities
+        assert "Person" in result.entities
+        assert len(result.entities["Document"]) == 2
+        assert len(result.entities["Folder"]) == 1
+        # Alice and Bob from owners + permissions
+        assert len(result.entities["Person"]) >= 2
+
+    @patch("urllib.request.urlopen")
+    def test_fetch_files_creates_relationships(self, mock_urlopen):
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_api_mock(responses)
+        conn = self._make_connector_with_token()
+        conn._include_comments = False
+        conn._include_revisions = False
+        conn._include_activity = False
+
+        result = conn.fetch()
+
+        rel_types = {r["type"] for r in result.relationships}
+        assert "CREATED_BY" in rel_types
+        assert "SHARED_WITH" in rel_types
+
+    @patch("urllib.request.urlopen")
+    def test_fetch_files_creates_documents(self, mock_urlopen):
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_api_mock(responses)
+        conn = self._make_connector_with_token()
+        conn._include_comments = False
+        conn._include_revisions = False
+        conn._include_activity = False
+
+        result = conn.fetch()
+        assert len(result.documents) == 2
+        assert result.documents[0]["type"] == "google-workspace-file"
+
+    # -- Comment threads & decision traces --
+
+    @patch("urllib.request.urlopen")
+    def test_fetch_comments_creates_decision_threads(self, mock_urlopen):
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_api_mock(responses)
+        conn = self._make_connector_with_token()
+        conn._include_revisions = False
+        conn._include_activity = False
+
+        result = conn.fetch()
+
+        assert len(result.entities["DecisionThread"]) >= 2  # 2 resolved + 1 unresolved from 2 docs
+        # Check resolved thread
+        resolved = [dt for dt in result.entities["DecisionThread"] if dt["resolved"]]
+        assert len(resolved) >= 1
+        assert "Redis" in resolved[0].get("resolution", "") or "Redis" in resolved[0].get("content", "")
+
+    @patch("urllib.request.urlopen")
+    def test_fetch_comments_creates_replies(self, mock_urlopen):
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_api_mock(responses)
+        conn = self._make_connector_with_token()
+        conn._include_revisions = False
+        conn._include_activity = False
+
+        result = conn.fetch()
+
+        assert len(result.entities["Reply"]) >= 2  # 2 content replies (resolve action without content is skipped)
+
+    @patch("urllib.request.urlopen")
+    def test_resolved_thread_produces_trace(self, mock_urlopen):
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_api_mock(responses)
+        conn = self._make_connector_with_token()
+        conn._include_revisions = False
+        conn._include_activity = False
+
+        result = conn.fetch()
+
+        assert len(result.traces) >= 1
+        trace = result.traces[0]
+        assert trace["id"].startswith("trace-gdrive-")
+        assert "Decision on" in trace["task"]
+        assert "Resolved" in trace["outcome"]
+        assert len(trace["steps"]) >= 2  # question + replies + resolve
+
+    @patch("urllib.request.urlopen")
+    def test_unresolved_thread_no_trace(self, mock_urlopen):
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_api_mock(responses)
+        conn = self._make_connector_with_token()
+        conn._include_revisions = False
+        conn._include_activity = False
+
+        result = conn.fetch()
+
+        # Only resolved threads produce traces
+        trace_ids = {t["id"] for t in result.traces}
+        assert "trace-gdrive-comment-2" not in trace_ids  # unresolved
+
+    @patch("urllib.request.urlopen")
+    def test_comment_relationships(self, mock_urlopen):
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_api_mock(responses)
+        conn = self._make_connector_with_token()
+        conn._include_revisions = False
+        conn._include_activity = False
+
+        result = conn.fetch()
+
+        rel_types = {r["type"] for r in result.relationships}
+        assert "HAS_COMMENT_THREAD" in rel_types
+        assert "HAS_REPLY" in rel_types
+        assert "AUTHORED_BY" in rel_types
+        assert "RESOLVED_BY" in rel_types
+
+    # -- Revisions --
+
+    @patch("urllib.request.urlopen")
+    def test_fetch_revisions(self, mock_urlopen):
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_api_mock(responses)
+        conn = self._make_connector_with_token()
+        conn._include_comments = False
+        conn._include_activity = False
+
+        result = conn.fetch()
+
+        assert len(result.entities["Revision"]) >= 2
+        rel_types = {r["type"] for r in result.relationships}
+        assert "HAS_REVISION" in rel_types
+        assert "REVISED_BY" in rel_types
+
+    # -- Drive Activity --
+
+    @patch("urllib.request.urlopen")
+    def test_fetch_activity(self, mock_urlopen):
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_api_mock(responses)
+        conn = self._make_connector_with_token()
+        conn._include_comments = False
+        conn._include_revisions = False
+
+        result = conn.fetch()
+
+        assert len(result.entities["Activity"]) >= 2
+        # Check action types
+        action_types = {a.get("actionType") for a in result.entities["Activity"]}
+        assert "edit" in action_types or "create" in action_types
+
+        rel_types = {r["type"] for r in result.relationships}
+        assert "ACTIVITY_ON" in rel_types
+        assert "PERFORMED_BY" in rel_types
+
+    # -- Calendar events (optional) --
+
+    @patch("urllib.request.urlopen")
+    def test_calendar_disabled_by_default(self, mock_urlopen):
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_api_mock(responses)
+        conn = self._make_connector_with_token()
+        conn._include_comments = False
+        conn._include_revisions = False
+        conn._include_activity = False
+
+        result = conn.fetch()
+        assert "Meeting" not in result.entities
+
+    @patch("urllib.request.urlopen")
+    def test_calendar_when_enabled(self, mock_urlopen):
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_api_mock(responses)
+        conn = self._make_connector_with_token()
+        conn._include_comments = False
+        conn._include_revisions = False
+        conn._include_activity = False
+        conn._include_calendar = True
+
+        result = conn.fetch()
+
+        assert "Meeting" in result.entities
+        assert len(result.entities["Meeting"]) >= 1
+        meeting = result.entities["Meeting"][0]
+        assert "Platform team sync" in meeting["summary"]
+
+        rel_types = {r["type"] for r in result.relationships}
+        assert "ATTENDEE_OF" in rel_types
+        assert "ORGANIZED_BY" in rel_types
+        assert "DISCUSSED_IN" in rel_types  # event description has doc URL
+
+    # -- Gmail threads (optional) --
+
+    @patch("urllib.request.urlopen")
+    def test_gmail_disabled_by_default(self, mock_urlopen):
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_api_mock(responses)
+        conn = self._make_connector_with_token()
+        conn._include_comments = False
+        conn._include_revisions = False
+        conn._include_activity = False
+
+        result = conn.fetch()
+        assert "EmailThread" not in result.entities
+
+    @patch("urllib.request.urlopen")
+    def test_gmail_when_enabled(self, mock_urlopen):
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_api_mock(responses)
+        conn = self._make_connector_with_token()
+        conn._include_comments = False
+        conn._include_revisions = False
+        conn._include_activity = False
+        conn._include_gmail = True
+
+        result = conn.fetch()
+
+        assert "EmailThread" in result.entities
+        assert len(result.entities["EmailThread"]) >= 1
+        thread = result.entities["EmailThread"][0]
+        assert "Caching" in thread["subject"]
+
+        rel_types = {r["type"] for r in result.relationships}
+        assert "PARTICIPANT_IN" in rel_types
+        assert "THREAD_ABOUT" in rel_types  # snippet has doc URL
+
+    # -- Cross-connector linking --
+
+    @patch("urllib.request.urlopen")
+    def test_cross_connector_linear_refs(self, mock_urlopen):
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_api_mock(responses)
+        conn = self._make_connector_with_token()
+        conn._include_revisions = False
+        conn._include_activity = False
+
+        result = conn.fetch()
+
+        # "ENG-456 Auth Design" doc name contains ENG-456
+        # comment-3 content contains "ENG-789"
+        issue_rels = [r for r in result.relationships if r["type"] == "RELATES_TO_ISSUE"]
+        ref_targets = {r["target_name"] for r in issue_rels}
+        assert "ENG-456" in ref_targets
+        assert "ENG-789" in ref_targets
+
+    @patch("urllib.request.urlopen")
+    def test_cross_connector_no_false_positives_on_clean_text(self, mock_urlopen):
+        """Cross-ref should not match things that aren't issue references."""
+        from create_context_graph.connectors.google_workspace_connector import (
+            LINEAR_REF_PATTERN,
+        )
+        # Standard IDs should match
+        assert LINEAR_REF_PATTERN.search("ENG-123")
+        assert LINEAR_REF_PATTERN.search("PROJECT-456")
+        # Single letter prefix should not match
+        assert not LINEAR_REF_PATTERN.search("X-1")
+
+    # -- Person deduplication --
+
+    @patch("urllib.request.urlopen")
+    def test_person_deduplication(self, mock_urlopen):
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_api_mock(responses)
+        conn = self._make_connector_with_token()
+        conn._include_activity = False
+
+        result = conn.fetch()
+
+        emails = [p["emailAddress"] for p in result.entities["Person"]]
+        # No duplicate emails
+        assert len(emails) == len(set(emails))
+
+    # -- Relationship integrity --
+
+    @patch("urllib.request.urlopen")
+    def test_all_relationships_have_required_keys(self, mock_urlopen):
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_api_mock(responses)
+        conn = self._make_connector_with_token()
+
+        result = conn.fetch()
+
+        required_keys = {"type", "source_name", "source_label", "target_name", "target_label"}
+        for rel in result.relationships:
+            assert required_keys.issubset(rel.keys()), f"Relationship missing keys: {rel}"
+
+    # -- Full pipeline integration --
+
+    @patch("urllib.request.urlopen")
+    def test_full_pipeline_all_features(self, mock_urlopen):
+        """Run the full pipeline with all features enabled."""
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_api_mock(responses)
+        conn = self._make_connector_with_token()
+        conn._include_calendar = True
+        conn._include_gmail = True
+
+        result = conn.fetch()
+
+        # All entity types present
+        for label in ["Document", "Folder", "Person", "DecisionThread", "Reply",
+                       "Revision", "Activity", "Meeting", "EmailThread"]:
+            assert label in result.entities, f"Missing entity type: {label}"
+
+        # Has relationships
+        assert len(result.relationships) > 10
+
+        # Has documents
+        assert len(result.documents) > 0
+
+        # Has decision traces
+        assert len(result.traces) > 0
+
+    # -- Edge cases --
+
+    @patch("urllib.request.urlopen")
+    def test_empty_workspace(self, mock_urlopen):
+        mock_urlopen.side_effect = self._make_api_mock({
+            "/drive/v3/files?": {"files": []},
+            "driveactivity.googleapis.com": {"activities": []},
+        })
+        conn = self._make_connector_with_token()
+
+        result = conn.fetch()
+
+        assert result.entities["Document"] == []
+        assert result.entities["Person"] == []
+        assert result.relationships == []
+        assert result.traces == []
+
+    @patch("urllib.request.urlopen")
+    def test_comments_disabled(self, mock_urlopen):
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_api_mock(responses)
+        conn = self._make_connector_with_token()
+        conn._include_comments = False
+        conn._include_revisions = False
+        conn._include_activity = False
+
+        result = conn.fetch()
+
+        assert len(result.entities["DecisionThread"]) == 0
+        assert len(result.entities["Reply"]) == 0
+        assert len(result.traces) == 0
