@@ -75,10 +75,14 @@ class ClaudeCodeConnector:
                 session_id = jsonl_path.stem
                 messages, tool_calls, meta = self._parse_session(jsonl_path)
 
-                session_name = meta.get("first_prompt", f"Session {session_id[:8]}")[:80]
+                # Use session_id as the unique merge key to avoid collisions
+                # when multiple sessions share the same opening prompt.
+                session_name = f"Session:{session_id}"
+                first_prompt = meta.get("first_prompt", "")
                 entities.setdefault("Session", []).append({
                     "name": session_name,
                     "sessionId": session_id,
+                    "firstPrompt": first_prompt[:200] if first_prompt else "",
                     "startedAt": meta.get("first_timestamp", ""),
                     "endedAt": meta.get("last_timestamp", ""),
                     "branch": meta.get("git_branch", ""),

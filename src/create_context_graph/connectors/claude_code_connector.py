@@ -187,17 +187,24 @@ class ClaudeCodeConnector(BaseConnector):
 
                 meta = parsed["metadata"]
 
-                # Build session name from first prompt or session ID.
+                # Build a unique session name using the session ID so that
+                # entity merge keys ({name, domain}) remain distinct across
+                # sessions even when two sessions start with the same prompt.
+                # The human-readable first prompt is stored as a separate
+                # display property.
+                session_id = parsed["session_id"]
                 first_prompt = sess_info.get("first_prompt", "")
-                session_name = (
-                    first_prompt[:80] if first_prompt
-                    else f"Session {parsed['session_id'][:8]}"
-                )
+                session_name = f"Session:{session_id}"
+
+                # Store the canonical name back into parsed so that
+                # decision_extractor.extract_decisions() uses the same key.
+                parsed["session_name"] = session_name
 
                 # Create Session entity.
                 session_entity = {
                     "name": session_name,
-                    "sessionId": parsed["session_id"],
+                    "sessionId": session_id,
+                    "firstPrompt": first_prompt[:200] if first_prompt else "",
                     "startedAt": meta["first_timestamp"],
                     "endedAt": meta["last_timestamp"],
                     "branch": meta["git_branch"],
