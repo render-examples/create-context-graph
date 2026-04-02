@@ -125,6 +125,61 @@ _GWS_AGENT_TOOLS: list[dict] = [
     },
 ]
 
+# ---------------------------------------------------------------------------
+# Claude Code session connector agent tools
+# ---------------------------------------------------------------------------
+
+_CLAUDE_CODE_AGENT_TOOLS: list[dict] = [
+    {
+        "name": "search_sessions",
+        "description": "Full-text search across Claude Code session message content by keyword. Returns matching sessions with context.",
+        "cypher": "MATCH (s:Session)-[:HAS_MESSAGE]->(m:Message) WHERE toLower(m.content) CONTAINS toLower($keyword) WITH s, m ORDER BY m.timestamp DESC RETURN s.name AS session, s.branch AS branch, m.role AS role, m.content AS content, m.timestamp AS timestamp LIMIT 15",
+        "parameters": [{"name": "keyword", "type": "string", "required": True}],
+    },
+    {
+        "name": "decision_history",
+        "description": "Find decisions made during Claude Code sessions related to a file, package, or topic.",
+        "cypher": "MATCH (d:Decision) WHERE toLower(d.description) CONTAINS toLower($topic) OPTIONAL MATCH (d)-[:CHOSE]->(chosen:Alternative) OPTIONAL MATCH (d)-[:REJECTED]->(rejected:Alternative) OPTIONAL MATCH (s:Session)-[:MADE_DECISION]->(d) RETURN d.name AS decision, d.description AS description, d.category AS category, d.confidence AS confidence, chosen.description AS chosen_approach, rejected.description AS rejected_approach, s.name AS session ORDER BY d.timestamp DESC LIMIT 10",
+        "parameters": [{"name": "topic", "type": "string", "required": True}],
+    },
+    {
+        "name": "file_timeline",
+        "description": "Show the complete modification and read history of a specific file across all Claude Code sessions.",
+        "cypher": "MATCH (f:File) WHERE f.path CONTAINS $path OPTIONAL MATCH (tc:ToolCall)-[:MODIFIED_FILE]->(f) WITH f, collect(DISTINCT {tool: tc.toolName, time: tc.timestamp, action: 'modified'}) AS modifications OPTIONAL MATCH (tc2:ToolCall)-[:READ_FILE]->(f) RETURN f.path AS file, f.language AS language, f.modificationCount AS total_modifications, modifications, collect(DISTINCT {tool: tc2.toolName, time: tc2.timestamp, action: 'read'}) AS reads LIMIT 5",
+        "parameters": [{"name": "path", "type": "string", "required": True}],
+    },
+    {
+        "name": "error_patterns",
+        "description": "Find recurring errors encountered during Claude Code sessions and how they were resolved.",
+        "cypher": "MATCH (e:Error)<-[:ENCOUNTERED_ERROR]-(tc:ToolCall) OPTIONAL MATCH (d:Decision {category: 'error-fix'})-[:RESULTED_IN]->(fix:ToolCall) WHERE d.description CONTAINS e.message RETURN e.message AS error, tc.toolName AS failed_tool, e.timestamp AS when, fix.toolName AS resolution_tool, d.description AS resolution LIMIT 15",
+        "parameters": [],
+    },
+    {
+        "name": "tool_usage_stats",
+        "description": "Analytics on tool usage across Claude Code sessions — most used tools, files, and commands.",
+        "cypher": "MATCH (tc:ToolCall) RETURN tc.toolName AS tool, count(*) AS usage_count, collect(DISTINCT tc.input)[..3] AS sample_inputs ORDER BY usage_count DESC LIMIT 15",
+        "parameters": [],
+    },
+    {
+        "name": "my_preferences",
+        "description": "Retrieve extracted developer preferences by category (coding_style, framework_choice, testing_approach, tool_configuration, naming_convention, documentation).",
+        "cypher": "MATCH (p:Preference) WHERE $category = '' OR p.category = $category RETURN p.name AS preference, p.value AS value, p.category AS category, p.confidence AS confidence, p.sessionCount AS seen_in_sessions, p.extractedFrom AS source ORDER BY p.confidence DESC LIMIT 20",
+        "parameters": [{"name": "category", "type": "string", "required": False, "default": ""}],
+    },
+    {
+        "name": "project_overview",
+        "description": "Summary statistics for a Claude Code project — sessions, files touched, decisions made, errors encountered.",
+        "cypher": "MATCH (p:Project) WHERE $project_name = '' OR toLower(p.name) CONTAINS toLower($project_name) OPTIONAL MATCH (p)-[:HAS_SESSION]->(s:Session) WITH p, count(DISTINCT s) AS session_count, sum(s.totalInputTokens) AS total_input_tokens, sum(s.totalOutputTokens) AS total_output_tokens OPTIONAL MATCH (p)-[:HAS_SESSION]->(:Session)-[:MADE_DECISION]->(d:Decision) RETURN p.name AS project, session_count, total_input_tokens, total_output_tokens, count(DISTINCT d) AS decision_count LIMIT 10",
+        "parameters": [{"name": "project_name", "type": "string", "required": False, "default": ""}],
+    },
+    {
+        "name": "reasoning_trace",
+        "description": "Trace the causal chain of tool calls for a specific session — shows the sequence of actions the agent took.",
+        "cypher": "MATCH (s:Session {name: $session_name})-[:HAS_MESSAGE]->(m:Message)-[:USED_TOOL]->(tc:ToolCall) RETURN m.role AS role, m.timestamp AS message_time, tc.toolName AS tool, tc.input AS tool_input, tc.isError AS had_error ORDER BY m.timestamp, tc.timestamp LIMIT 50",
+        "parameters": [{"name": "session_name", "type": "string", "required": True}],
+    },
+]
+
 
 # ---------------------------------------------------------------------------
 # Renderer
@@ -199,6 +254,17 @@ class ProjectRenderer:
                 "open_questions tools to answer questions about why decisions were "
                 "made, who was involved, and what is still pending."
             )
+        if "claude-code" in self.config.saas_connectors:
+            prompt += (
+                "\n\nYou also have access to Claude Code session history. "
+                "The knowledge graph contains Session, Message, ToolCall, Decision, "
+                "Preference, File, and Error nodes extracted from local Claude Code "
+                "JSONL session files. Use the search_sessions, decision_history, "
+                "file_timeline, error_patterns, tool_usage_stats, my_preferences, "
+                "project_overview, and reasoning_trace tools to answer questions about "
+                "past coding sessions, decisions made, developer preferences, and "
+                "file modification history."
+            )
         return prompt
 
     def _build_agent_tools(self) -> list[dict]:
@@ -208,6 +274,10 @@ class ProjectRenderer:
         # Add Google Workspace decision-trace tools when connector is active
         if "google-workspace" in self.config.saas_connectors:
             tools.extend(_GWS_AGENT_TOOLS)
+
+        # Add Claude Code session intelligence tools when connector is active
+        if "claude-code" in self.config.saas_connectors:
+            tools.extend(_CLAUDE_CODE_AGENT_TOOLS)
 
         return tools
 
@@ -344,6 +414,7 @@ class ProjectRenderer:
                 "salesforce": "salesforce_connector",
                 "linear": "linear_connector",
                 "google-workspace": "google_workspace_connector",
+                "claude-code": "claude_code_connector",
             }
             for conn_id in self.config.saas_connectors:
                 template_name = connector_templates.get(conn_id)
