@@ -26,6 +26,12 @@ FRONTEND_PORT=3000
 LINEAR_API_KEY=your-linear-api-key-here  # From Linear Settings > Security & Access > API
 LINEAR_TEAM=  # Optional: team key to filter import (e.g., ENG)
 {% endif %}
+{% if 'google-workspace' in saas_connectors %}
+# Google Workspace (decision trace import from Drive, Calendar, Gmail)
+GOOGLE_CLIENT_ID=your-client-id-here  # From Google Cloud Console > APIs & Services > Credentials
+GOOGLE_CLIENT_SECRET=your-client-secret-here
+GWS_FOLDER_ID=  # Optional: Drive folder ID to scope import (recommended)
+{% endif %}
 # CORS — comma-separated origins allowed for frontend (default: http://localhost:3000)
 # CORS_ORIGINS=http://localhost:3000,https://yourdomain.com
 

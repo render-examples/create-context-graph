@@ -11,6 +11,7 @@ const sidebars: SidebarsConfig = {
         'tutorials/first-context-graph-app',
         'tutorials/customizing-domain-ontology',
         'tutorials/linear-context-graph',
+        'tutorials/google-workspace-decisions',
       ],
     },
     {
@@ -34,6 +35,7 @@ const sidebars: SidebarsConfig = {
         'reference/generated-project-structure',
         'reference/framework-comparison',
         'reference/domain-catalog',
+        'reference/google-workspace-schema',
       ],
     },
     {
@@ -43,6 +45,7 @@ const sidebars: SidebarsConfig = {
         'explanation/how-domain-ontologies-work',
         'explanation/three-memory-types',
         'explanation/why-context-graphs',
+        'explanation/how-decision-traces-work',
       ],
     },
   ],

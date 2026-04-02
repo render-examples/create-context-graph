@@ -1044,6 +1044,89 @@ Schema introspection of Linear's GraphQL API (494 types) revealed significant ad
 
 ---
 
+## Phase 16b — Google Workspace Connector: Decision Trace Extraction (v0.8.4)
+
+### What was built
+
+#### Google Workspace connector (`google-workspace`)
+- New connector importing from 6 Google APIs: Drive Files, Drive Comments, Drive Revisions, Drive Activity, Calendar (optional), Gmail (optional)
+- **Decision trace extraction**: Resolved comment threads in Google Docs become `DecisionThread` graph nodes with content, quotedContent, resolution, resolved status, and participant count — the core innovation
+- Each resolved thread generates a decision trace (thought/action/observation steps) in the same format used by neo4j-agent-memory
+- Unresolved threads become queryable `DecisionThread` nodes with `resolved: false` for the `open_questions` tool
+- `Reply` entities for each response in a thread, linked via `HAS_REPLY` with `AUTHORED_BY`
+- `Revision` entities tracking document evolution via `HAS_REVISION` and `REVISED_BY`
+- `Activity` entities from Drive Activity API v2 with action type mapping (create, edit, move, rename, delete, etc.)
+- `Meeting` entities from Calendar API (when `--gws-include-calendar`) with `ATTENDEE_OF`, `ORGANIZED_BY`, and `DISCUSSED_IN` (document-meeting linking via Drive URL detection)
+- `EmailThread` entities from Gmail API (when `--gws-include-gmail`) with metadata only (no body text for privacy) and `THREAD_ABOUT` linking
+- **Cross-connector linking**: Scans comment bodies, doc names, email subjects, meeting descriptions for Linear issue references (ENG-123 pattern) creating `RELATES_TO_ISSUE` relationships
+- OAuth2 authentication with dynamic scope building based on enabled features, gws CLI preferred with Python OAuth2 fallback
+- Rate limiting: 950 queries/100s sliding window with exponential backoff (5 retries, max 60s)
+- Person deduplication by email across all sub-fetchers
+
+#### CLI integration
+- 9 new `--gws-*` CLI flags: `--gws-folder-id`, `--gws-include-comments`/`--gws-no-comments`, `--gws-include-revisions`/`--gws-no-revisions`, `--gws-include-activity`/`--gws-no-activity`, `--gws-include-calendar`, `--gws-include-gmail`, `--gws-since`, `--gws-mime-types`, `--gws-max-files`
+- Credential passing via `config.saas_credentials["google-workspace"]` dict
+- Updated `--connector` help text to include `google-workspace`
+
+#### Agent tools
+- 10 decision-focused tools injected via renderer when connector is active: `find_decisions`, `decision_context`, `who_decided`, `document_timeline`, `open_questions`, `meeting_decisions`, `knowledge_contributors`, `trace_decision_to_source`, `stale_documents`, `cross_reference`
+- System prompt augmented with Google Workspace decision context description
+- Tools use Cypher queries traversing DecisionThread, Reply, Revision, Activity, Meeting, EmailThread nodes
+
+#### Generated project integration
+- Scaffold template: `google_workspace_connector.py.j2` with full parity — all 7 stages (Files, Comments/Decision Traces, Revisions, Activity, Calendar, Gmail, Cross-references) using OAuth2 only (no gws CLI fallback)
+- `import_data.py.j2` updated with google-workspace dispatch case
+- `.env` and `.env.example` templates add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GWS_FOLDER_ID`
+- Renderer `connector_templates` mapping updated
+
+#### Documentation (3 new pages, 3 updated)
+- **Tutorial**: "Decision Traces from Google Workspace" — step-by-step OAuth setup, scaffold, seed, explore, 10 example agent questions, 7 Cypher queries, combining with Linear
+- **Explanation**: "How Decision Traces Are Extracted" — conceptual guide to comment thread classification, resolution detection, cross-connector linking, graph vs RAG comparison
+- **Reference**: "Google Workspace Graph Schema" — complete node labels, relationships, properties, agent tools, cross-connector patterns
+- Updated: `import-saas-data.md` (how-to), `cli-options.md` (reference), `sidebars.ts` (navigation)
+
+### Tests added (36 new)
+
+#### Unit tests in `test_connectors.py` (+28 Google Workspace tests)
+- Registration & metadata (3): connector registered, credential prompts with/without gws CLI
+- Authentication (3): missing creds, gws path, flag parsing
+- File fetching (3): basic files, relationships, documents
+- Comment threads (4): decision threads, replies, resolved→trace, unresolved→no trace
+- Comment relationships (1): HAS_COMMENT_THREAD, HAS_REPLY, AUTHORED_BY, RESOLVED_BY
+- Revisions (1): entities and relationships
+- Activity (1): entities, action types, relationships
+- Calendar (2): disabled by default, enabled with attendees/document linking
+- Gmail (2): disabled by default, enabled with participants/document linking
+- Cross-connector (2): Linear refs detected, no false positives
+- Integrity (2): person deduplication, relationship required keys
+- Integration (1): full pipeline with all features
+- Edge cases (2): empty workspace, comments disabled
+
+#### CLI integration tests in `test_cli.py` (+8 tests, `TestGoogleWorkspaceConnectorCLI`)
+- Dry run output, generated files, .env vars, .env.example, import script, template compilation, all flags accepted, combined with Linear
+
+### Files created
+- `src/create_context_graph/connectors/google_workspace_connector.py` — core connector (~1,400 lines)
+- `src/create_context_graph/templates/backend/connectors/google_workspace_connector.py.j2` — scaffold template
+- `docs/docs/tutorials/google-workspace-decisions.md` — tutorial
+- `docs/docs/explanation/how-decision-traces-work.md` — conceptual explainer
+- `docs/docs/reference/google-workspace-schema.md` — schema reference
+
+### Files modified
+- `src/create_context_graph/connectors/__init__.py` — register GoogleWorkspaceConnector
+- `src/create_context_graph/cli.py` — 9 new `--gws-*` flags, credential passing block
+- `src/create_context_graph/renderer.py` — connector template mapping, 10 GWS agent tools, system prompt augmentation
+- `src/create_context_graph/templates/backend/connectors/import_data.py.j2` — google-workspace dispatch
+- `src/create_context_graph/templates/base/dot_env.j2` — GWS env vars
+- `src/create_context_graph/templates/base/dot_env_example.j2` — GWS env var docs
+- `tests/test_connectors.py` — 28 new tests, registry count updated to 9
+- `tests/test_cli.py` — 8 new GWS CLI tests
+- `docs/sidebars.ts` — 3 new pages in navigation
+- `docs/docs/how-to/import-saas-data.md` — Google Workspace section
+- `docs/docs/reference/cli-options.md` — 9 new `--gws-*` flags
+
+---
+
 ## Summary
 
 | Phase | Description | Status | Tests |
@@ -1067,3 +1150,4 @@ Schema introspection of Linear's GraphQL API (494 types) revealed significant ad
 | 15 | Linear Data Import Connector | **Complete** | 705 passing |
 | 15b | Linear Deep Graph: Relations, History, Decisions | **Complete** | 741 passing |
 | 16 | Linear Connector Hardening & Test Suite Expansion | **Complete** | 874 passing (1,084 collected) |
+| 16b | Google Workspace Connector: Decision Trace Extraction | **Complete** | 874+ passing |

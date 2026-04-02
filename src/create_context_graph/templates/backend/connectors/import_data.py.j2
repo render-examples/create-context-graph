@@ -27,6 +27,8 @@ from app.connectors.gcal_connector import GCalConnector
 from app.connectors.salesforce_connector import SalesforceConnector
 {% endraw %}{% elif conn == 'linear' %}{% raw %}
 from app.connectors.linear_connector import LinearConnector
+{% endraw %}{% elif conn == 'google-workspace' %}{% raw %}
+from app.connectors.google_workspace_connector import GoogleWorkspaceConnector
 {% endraw %}{% endif %}{% endfor %}
 {% raw %}
 from app.config import settings
@@ -88,6 +90,12 @@ def main():
             "api_key": settings.linear_api_key,
             "team_key": settings.linear_team or "",
         }))
+{% endraw %}{% elif conn == 'google-workspace' %}{% raw %}
+    connectors.append(("Google Workspace", GoogleWorkspaceConnector(), {
+        "client_id": getattr(settings, "google_client_id", "") or "",
+        "client_secret": getattr(settings, "google_client_secret", "") or "",
+        "folder_id": getattr(settings, "gws_folder_id", "") or "",
+    }))
 {% endraw %}{% endif %}
 {% endfor %}
 {% raw %}

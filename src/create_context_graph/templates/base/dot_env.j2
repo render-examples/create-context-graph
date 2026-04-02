@@ -21,5 +21,11 @@ FRONTEND_PORT=3000
 LINEAR_API_KEY=
 LINEAR_TEAM=
 {% endif %}
+{% if 'google-workspace' in saas_connectors %}
+# Google Workspace (decision trace import)
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GWS_FOLDER_ID=
+{% endif %}
 # Suppress HuggingFace Hub warnings (set HF_TOKEN for higher rate limits)
 HF_HUB_DISABLE_TELEMETRY=1

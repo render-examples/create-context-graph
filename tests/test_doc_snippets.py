@@ -116,10 +116,15 @@ class TestCliFlags:
 
         # Build a set of flag names from the Click command parameters.
         # Click stores parameter names with underscores; convert to kebab.
-        cli_param_names = {p.name for p in main.params}
-        cli_flag_names = {
-            "--" + name.replace("_", "-") for name in cli_param_names
-        }
+        # For boolean flag pairs (e.g. --flag/--no-flag), include both
+        # the primary and secondary option strings.
+        cli_flag_names: set[str] = set()
+        for p in main.params:
+            cli_flag_names.add("--" + p.name.replace("_", "-"))
+            if hasattr(p, "opts"):
+                cli_flag_names.update(p.opts)
+            if hasattr(p, "secondary_opts") and p.secondary_opts:
+                cli_flag_names.update(p.secondary_opts)
 
         # --help and --version are built-in Click decorators and won't appear
         # as explicit params in all Click versions; allow them.

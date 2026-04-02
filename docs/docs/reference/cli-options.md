@@ -23,9 +23,18 @@ create-context-graph [PROJECT_NAME] [OPTIONS]
 | `--framework` | `choice` | -- | *(wizard prompt)* | Agent framework to use. One of: `pydanticai`, `claude-agent-sdk`, `strands`, `google-adk`, `openai-agents`, `langgraph`, `crewai`, `anthropic-tools`. |
 | `--demo-data` | `flag` | -- | `false` | Generate synthetic demo data and write it to `data/fixtures.json` in the output project. Uses static placeholder data by default; pass `--anthropic-api-key` for LLM-generated realistic data. |
 | `--custom-domain` | `string` | -- | -- | Natural language description of a custom domain (e.g., `"veterinary clinic management"`). Requires `--anthropic-api-key`. Generates a full ontology YAML from the description. |
-| `--connector` | `string` (repeatable) | -- | -- | SaaS connector to enable. Can be specified multiple times. Supported values: `github`, `slack`, `jira`, `notion`, `gmail`, `gcal`, `salesforce`, `linear`. |
+| `--connector` | `string` (repeatable) | -- | -- | SaaS connector to enable. Can be specified multiple times. Supported values: `github`, `slack`, `jira`, `notion`, `gmail`, `gcal`, `salesforce`, `linear`, `google-workspace`. |
 | `--linear-api-key` | `string` | `LINEAR_API_KEY` | -- | Linear personal API key. Required when using `--connector linear`. |
 | `--linear-team` | `string` | `LINEAR_TEAM` | -- | Linear team URL key (e.g., `ENG`). Filters the import to a single team. If omitted, all teams are imported. |
+| `--gws-folder-id` | `string` | `GWS_FOLDER_ID` | -- | Google Drive folder ID to scope the import. Recommended to keep the graph focused. |
+| `--gws-include-comments` / `--gws-no-comments` | `flag` | -- | on | Import comment threads from Docs/Sheets/Slides. Resolved threads become decision traces. |
+| `--gws-include-revisions` / `--gws-no-revisions` | `flag` | -- | on | Import revision history metadata for each file. |
+| `--gws-include-activity` / `--gws-no-activity` | `flag` | -- | on | Import Drive Activity events (create, edit, move, share, etc.). |
+| `--gws-include-calendar` | `flag` | -- | off | Import Calendar events within the time range. Requires Google Calendar API enabled. |
+| `--gws-include-gmail` | `flag` | -- | off | Import Gmail thread metadata (subject, participants -- no body text). Requires Gmail API enabled. |
+| `--gws-since` | `string` | -- | 90 days ago | ISO date; only import activity after this date. |
+| `--gws-mime-types` | `string` | -- | `docs,sheets,slides` | Comma-separated MIME type filter (`docs`, `sheets`, `slides`, `pdf`, `all`). |
+| `--gws-max-files` | `int` | -- | `500` | Maximum number of files to import (safety limit). |
 | `--ingest` | `flag` | -- | `false` | Ingest generated data into Neo4j after scaffolding. Requires a running Neo4j instance. |
 | `--neo4j-uri` | `string` | `NEO4J_URI` | `neo4j://localhost:7687` | Neo4j Bolt connection URI. |
 | `--neo4j-username` | `string` | `NEO4J_USERNAME` | `neo4j` | Neo4j authentication username. |

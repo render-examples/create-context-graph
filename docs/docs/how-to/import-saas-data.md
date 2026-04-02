@@ -19,6 +19,7 @@ Create Context Graph can pull data from SaaS services and map it into your Neo4j
 | **Google Calendar** | Events, attendees, calendars, recurring series | Google OAuth 2.0 / service account |
 | **Salesforce** | Accounts, contacts, opportunities, leads, cases, activities | OAuth 2.0 connected app |
 | **Linear** | Issues, projects, cycles, teams, users, labels, comments, milestones, initiatives, attachments + decision traces | Personal API key |
+| **Google Workspace** | Drive files, comment threads (as decision traces), revisions, Drive Activity, Calendar events, Gmail metadata | Google OAuth 2.0 |
 
 ## Selecting Connectors in the Interactive Wizard
 
@@ -57,6 +58,48 @@ create-context-graph my-project \
 ```
 
 The `--linear-team` flag is optional. If omitted, all teams in the workspace are imported.
+
+### Google Workspace example
+
+Import Drive files, comment threads, and revision history from a specific folder:
+
+```bash
+create-context-graph my-decisions-app \
+  --domain software-engineering \
+  --framework pydanticai \
+  --connector google-workspace \
+  --gws-folder-id 1aBcDeFgHiJkLmNoPqRsT
+```
+
+Add Calendar events and Gmail metadata for full decision context:
+
+```bash
+create-context-graph my-decisions-app \
+  --domain software-engineering \
+  --framework pydanticai \
+  --connector google-workspace \
+  --gws-folder-id 1aBcDeFg \
+  --gws-include-calendar \
+  --gws-include-gmail \
+  --gws-since 2026-01-01
+```
+
+### Combining connectors
+
+Use both Google Workspace and Linear for the full decision lifecycle -- from meeting discussion to code execution:
+
+```bash
+create-context-graph my-full-context-app \
+  --domain software-engineering \
+  --framework pydanticai \
+  --connector google-workspace \
+  --connector linear \
+  --gws-folder-id 1aBcDeFg \
+  --gws-include-calendar \
+  --linear-api-key lin_api_xxxxx
+```
+
+The connectors automatically cross-link: Linear issue references found in Google Docs comments or document names create `RELATES_TO_ISSUE` relationships.
 
 ## Gmail and Google Calendar Setup
 
@@ -121,6 +164,18 @@ These targets read credentials from the `.env` file in the project root.
 1. In Salesforce Setup, go to **App Manager** and create a new Connected App.
 2. Enable OAuth and select scopes: `api`, `refresh_token`, `offline_access`.
 3. Set `SALESFORCE_CLIENT_ID`, `SALESFORCE_CLIENT_SECRET`, `SALESFORCE_USERNAME`, `SALESFORCE_PASSWORD`, and `SALESFORCE_SECURITY_TOKEN` in `.env`.
+
+### Google Workspace
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) and create a project (or select an existing one).
+2. Navigate to **APIs & Services > Library** and enable: **Google Drive API**, **Drive Activity API**, and optionally **Google Calendar API** and **Gmail API**.
+3. Navigate to **APIs & Services > Credentials** and create an **OAuth client ID** (Desktop app type).
+4. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env`.
+5. Optionally set `GWS_FOLDER_ID` to a Drive folder ID to scope the import.
+
+The Google Workspace connector imports files, comment threads (with resolution detection), revision history, Drive Activity, and optionally Calendar events and Gmail thread metadata. Resolved comment threads are extracted as **decision traces** -- the question, deliberation, resolution, and participants are all captured as graph nodes. It also provides 10 decision-focused agent tools (`find_decisions`, `decision_context`, `who_decided`, `open_questions`, etc.).
+
+See the [Decision Traces from Google Workspace](/docs/tutorials/google-workspace-decisions) tutorial for a complete walkthrough.
 
 ### Linear
 

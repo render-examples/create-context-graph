@@ -496,3 +496,136 @@ class TestLinearConnectorCLI:
         connectors_dir = out / "backend" / "app" / "connectors"
         assert (connectors_dir / "linear_connector.py").exists()
         assert (connectors_dir / "github_connector.py").exists()
+
+
+class TestGoogleWorkspaceConnectorCLI:
+    """Tests for --connector google-workspace CLI integration."""
+
+    def test_gws_connector_dry_run(self, runner, tmp_path):
+        """--connector google-workspace should appear in dry-run output."""
+        out = tmp_path / "gws-dry"
+        result = runner.invoke(main, [
+            "gws-dry",
+            "--domain", "software-engineering",
+            "--framework", "pydanticai",
+            "--connector", "google-workspace",
+            "--dry-run",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        assert "google-workspace" in result.output
+        assert "Connectors" in result.output
+
+    def test_gws_connector_generates_files(self, runner, tmp_path):
+        """--connector google-workspace should generate connector files."""
+        out = tmp_path / "gws-gen"
+        result = runner.invoke(main, [
+            "gws-gen",
+            "--domain", "software-engineering",
+            "--framework", "pydanticai",
+            "--connector", "google-workspace",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        assert (out / "backend" / "app" / "connectors" / "google_workspace_connector.py").exists()
+        assert (out / "backend" / "app" / "connectors" / "__init__.py").exists()
+        assert (out / "backend" / "scripts" / "import_data.py").exists()
+
+    def test_gws_connector_env_vars(self, runner, tmp_path):
+        """--connector google-workspace should add GWS env vars to .env."""
+        out = tmp_path / "gws-env"
+        result = runner.invoke(main, [
+            "gws-env",
+            "--domain", "software-engineering",
+            "--framework", "pydanticai",
+            "--connector", "google-workspace",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        env = (out / ".env").read_text()
+        assert "GOOGLE_CLIENT_ID" in env
+        assert "GWS_FOLDER_ID" in env
+
+    def test_gws_connector_env_example(self, runner, tmp_path):
+        """--connector google-workspace should add GWS env vars to .env.example."""
+        out = tmp_path / "gws-envex"
+        result = runner.invoke(main, [
+            "gws-envex",
+            "--domain", "software-engineering",
+            "--framework", "pydanticai",
+            "--connector", "google-workspace",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        env_example = (out / ".env.example").read_text()
+        assert "GOOGLE_CLIENT_ID" in env_example
+        assert "GOOGLE_CLIENT_SECRET" in env_example
+        assert "GWS_FOLDER_ID" in env_example
+
+    def test_gws_connector_import_data_script(self, runner, tmp_path):
+        """Generated import_data.py should include GWS connector imports."""
+        out = tmp_path / "gws-imp"
+        result = runner.invoke(main, [
+            "gws-imp",
+            "--domain", "software-engineering",
+            "--framework", "pydanticai",
+            "--connector", "google-workspace",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        import_script = (out / "backend" / "scripts" / "import_data.py").read_text()
+        assert "GoogleWorkspaceConnector" in import_script
+
+    def test_gws_connector_template_compiles(self, runner, tmp_path):
+        """Generated google_workspace_connector.py should be valid Python."""
+        out = tmp_path / "gws-compile"
+        result = runner.invoke(main, [
+            "gws-compile",
+            "--domain", "software-engineering",
+            "--framework", "pydanticai",
+            "--connector", "google-workspace",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        connector_path = out / "backend" / "app" / "connectors" / "google_workspace_connector.py"
+        source = connector_path.read_text()
+        try:
+            compile(source, str(connector_path), "exec")
+        except SyntaxError as e:
+            pytest.fail(f"google_workspace_connector.py has syntax error: {e}")
+
+    def test_gws_flags_accepted(self, runner, tmp_path):
+        """All --gws-* flags should be accepted."""
+        out = tmp_path / "gws-flags"
+        result = runner.invoke(main, [
+            "gws-flags",
+            "--domain", "software-engineering",
+            "--framework", "pydanticai",
+            "--connector", "google-workspace",
+            "--gws-folder-id", "1aBcDeFg",
+            "--gws-include-calendar",
+            "--gws-include-gmail",
+            "--gws-no-revisions",
+            "--gws-since", "2026-01-01",
+            "--gws-mime-types", "docs,pdf",
+            "--gws-max-files", "100",
+            "--dry-run",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+
+    def test_gws_with_linear_connector(self, runner, tmp_path):
+        """Google Workspace connector can be combined with Linear."""
+        out = tmp_path / "gws-linear"
+        result = runner.invoke(main, [
+            "gws-linear",
+            "--domain", "software-engineering",
+            "--framework", "pydanticai",
+            "--connector", "google-workspace",
+            "--connector", "linear",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        connectors_dir = out / "backend" / "app" / "connectors"
+        assert (connectors_dir / "google_workspace_connector.py").exists()
+        assert (connectors_dir / "linear_connector.py").exists()
