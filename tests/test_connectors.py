@@ -77,7 +77,7 @@ class TestNormalizedData:
 
 
 class TestConnectorRegistry:
-    def test_all_nine_registered(self):
+    def test_all_registered(self):
         assert len(CONNECTOR_REGISTRY) == 10
 
     def test_expected_connectors(self):
