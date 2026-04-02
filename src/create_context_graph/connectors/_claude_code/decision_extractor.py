@@ -480,4 +480,4 @@ def _detect_dependency_changes(
 def _make_id(session_id: str, index: int, signal_type: str) -> str:
     """Generate a deterministic short ID for a decision."""
     raw = f"{session_id}:{index}:{signal_type}"
-    return hashlib.md5(raw.encode()).hexdigest()[:12]  # noqa: S324
+    return hashlib.sha256(raw.encode()).hexdigest()[:12]
