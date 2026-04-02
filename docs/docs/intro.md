@@ -19,7 +19,7 @@ Given a domain (like healthcare, financial services, or wildlife management) and
 - **Interactive graph visualization** -- the frontend includes an NVL-powered graph explorer with entity detail panel (click any node to see all properties and connections), a document browser with template filtering, and a decision trace viewer.
 - **Rich demo data** -- each domain ships with LLM-generated fixture data: 80-90 entities with realistic names, 25+ professional documents (discharge summaries, trade confirmations, lab reports), and 3-5 multi-step decision traces. All loaded into Neo4j via `make seed` and browsable in the frontend.
 - **Flexible Neo4j setup** -- connect to Neo4j Aura (free cloud tier with `.env` import), run locally with `@johnymontana/neo4j-local` (no Docker needed), use Docker Compose, or connect to any existing instance.
-- **SaaS data import** -- connect Gmail, Slack, Jira, GitHub, Notion, and Salesforce to populate your graph with real data.
+- **SaaS data import** -- connect Gmail, Slack, Jira, GitHub, Notion, Salesforce, Linear, Google Workspace, and Claude Code to populate your graph with real data. The Claude Code connector imports your local AI coding session history with decision extraction and preference analysis -- no API keys required.
 - **Custom domains** -- describe your domain and let the tool generate a complete ontology, or write your own YAML definition from scratch.
 
 ## Quick Install

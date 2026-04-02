@@ -12,6 +12,7 @@ const sidebars: SidebarsConfig = {
         'tutorials/customizing-domain-ontology',
         'tutorials/linear-context-graph',
         'tutorials/google-workspace-decisions',
+        'tutorials/claude-code-sessions',
       ],
     },
     {
@@ -36,6 +37,7 @@ const sidebars: SidebarsConfig = {
         'reference/framework-comparison',
         'reference/domain-catalog',
         'reference/google-workspace-schema',
+        'reference/claude-code-schema',
       ],
     },
     {

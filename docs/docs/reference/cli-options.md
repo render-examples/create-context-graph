@@ -23,7 +23,7 @@ create-context-graph [PROJECT_NAME] [OPTIONS]
 | `--framework` | `choice` | -- | *(wizard prompt)* | Agent framework to use. One of: `pydanticai`, `claude-agent-sdk`, `strands`, `google-adk`, `openai-agents`, `langgraph`, `crewai`, `anthropic-tools`. |
 | `--demo-data` | `flag` | -- | `false` | Generate synthetic demo data and write it to `data/fixtures.json` in the output project. Uses static placeholder data by default; pass `--anthropic-api-key` for LLM-generated realistic data. |
 | `--custom-domain` | `string` | -- | -- | Natural language description of a custom domain (e.g., `"veterinary clinic management"`). Requires `--anthropic-api-key`. Generates a full ontology YAML from the description. |
-| `--connector` | `string` (repeatable) | -- | -- | SaaS connector to enable. Can be specified multiple times. Supported values: `github`, `slack`, `jira`, `notion`, `gmail`, `gcal`, `salesforce`, `linear`, `google-workspace`. |
+| `--connector` | `string` (repeatable) | -- | -- | SaaS connector to enable. Can be specified multiple times. Supported values: `github`, `slack`, `jira`, `notion`, `gmail`, `gcal`, `salesforce`, `linear`, `google-workspace`, `claude-code`. |
 | `--linear-api-key` | `string` | `LINEAR_API_KEY` | -- | Linear personal API key. Required when using `--connector linear`. |
 | `--linear-team` | `string` | `LINEAR_TEAM` | -- | Linear team URL key (e.g., `ENG`). Filters the import to a single team. If omitted, all teams are imported. |
 | `--gws-folder-id` | `string` | `GWS_FOLDER_ID` | -- | Google Drive folder ID to scope the import. Recommended to keep the graph focused. |
@@ -35,6 +35,11 @@ create-context-graph [PROJECT_NAME] [OPTIONS]
 | `--gws-since` | `string` | -- | 90 days ago | ISO date; only import activity after this date. |
 | `--gws-mime-types` | `string` | -- | `docs,sheets,slides` | Comma-separated MIME type filter (`docs`, `sheets`, `slides`, `pdf`, `all`). |
 | `--gws-max-files` | `int` | -- | `500` | Maximum number of files to import (safety limit). |
+| `--claude-code-scope` | `choice` | -- | `current` | Import sessions from the `current` project (matching cwd) or `all` projects in `~/.claude/projects/`. |
+| `--claude-code-project` | `string` | -- | -- | Explicit project path to import Claude Code sessions for. Overrides `--claude-code-scope`. |
+| `--claude-code-since` | `string` | -- | all time | ISO date; only import sessions modified after this date. |
+| `--claude-code-max-sessions` | `int` | -- | `0` (all) | Maximum number of sessions to import (most recent first). `0` means no limit. |
+| `--claude-code-content` | `choice` | -- | `truncated` | Content storage mode: `full` (complete text), `truncated` (first 2000 chars), `none` (metadata only). |
 | `--ingest` | `flag` | -- | `false` | Ingest generated data into Neo4j after scaffolding. Requires a running Neo4j instance. |
 | `--neo4j-uri` | `string` | `NEO4J_URI` | `neo4j://localhost:7687` | Neo4j Bolt connection URI. |
 | `--neo4j-username` | `string` | `NEO4J_USERNAME` | `neo4j` | Neo4j authentication username. |

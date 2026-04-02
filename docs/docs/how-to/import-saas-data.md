@@ -20,6 +20,7 @@ Create Context Graph can pull data from SaaS services and map it into your Neo4j
 | **Salesforce** | Accounts, contacts, opportunities, leads, cases, activities | OAuth 2.0 connected app |
 | **Linear** | Issues, projects, cycles, teams, users, labels, comments, milestones, initiatives, attachments + decision traces | Personal API key |
 | **Google Workspace** | Drive files, comment threads (as decision traces), revisions, Drive Activity, Calendar events, Gmail metadata | Google OAuth 2.0 |
+| **Claude Code** | Session history, messages, tool calls, files, decisions, preferences, errors | None (local files) |
 
 ## Selecting Connectors in the Interactive Wizard
 
@@ -83,6 +84,30 @@ create-context-graph my-decisions-app \
   --gws-include-gmail \
   --gws-since 2026-01-01
 ```
+
+### Claude Code example
+
+Import your Claude Code session history from the current project:
+
+```bash
+create-context-graph my-dev-graph \
+  --domain software-engineering \
+  --framework claude-agent-sdk \
+  --connector claude-code
+```
+
+Import all projects with a time filter:
+
+```bash
+create-context-graph my-dev-graph \
+  --domain software-engineering \
+  --framework claude-agent-sdk \
+  --connector claude-code \
+  --claude-code-scope all \
+  --claude-code-since 2026-03-01
+```
+
+No API key or credentials are needed -- the connector reads local JSONL files from `~/.claude/projects/`.
 
 ### Combining connectors
 
@@ -194,3 +219,20 @@ The Linear connector imports 12 entity types: issues, projects, cycles, teams, u
 The connector validates team keys during authentication — if you provide an invalid key, it lists the available team keys. It automatically retries on rate limits (HTTP 429) with exponential backoff, and logs warnings when comments or history entries exceed page limits.
 
 No external Python package is required — the connector uses Python's built-in `urllib`.
+
+### Claude Code
+
+No setup required. The connector reads session JSONL files directly from `~/.claude/projects/` on your local machine.
+
+The connector:
+
+- **Parses session files** -- user/assistant messages, tool_use blocks (Read, Write, Edit, Bash, Grep, Glob, Agent), tool results, and errors
+- **Extracts decisions** -- user corrections, deliberation patterns, error-resolution cycles, and dependency changes are identified as decision traces
+- **Extracts preferences** -- explicit statements ("always use X") and behavioral patterns (frequently-installed packages) become Preference entities
+- **Redacts secrets** -- API keys, tokens, passwords, and connection strings are automatically replaced with `[REDACTED]` before storage
+- **Tracks files** -- every file read or written by Claude Code becomes a File entity with modification and read counts
+- Provides **8 session intelligence agent tools** (`search_sessions`, `decision_history`, `file_timeline`, `error_patterns`, `tool_usage_stats`, `my_preferences`, `project_overview`, `reasoning_trace`)
+
+No external Python packages are required -- the connector uses only Python's standard library.
+
+See the [Build a Developer Knowledge Graph from Claude Code Sessions](/docs/tutorials/claude-code-sessions) tutorial for a complete walkthrough.
