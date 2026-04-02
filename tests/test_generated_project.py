@@ -921,13 +921,13 @@ class TestDeferredBugFixes:
         renderer = ProjectRenderer(config, ontology)
         renderer.render(out)
         pyproject = (out / "backend" / "pyproject.toml").read_text()
-        assert '>=3.11' in pyproject
+        assert '>=3.11, <3.14' in pyproject
 
     def test_non_crewai_requires_python_310(self, generated_project):
         """BUG-016: Non-CrewAI projects must require Python 3.10+."""
         out, _ = generated_project
         pyproject = (out / "backend" / "pyproject.toml").read_text()
-        assert '>=3.10' in pyproject
+        assert '>=3.10, <3.14' in pyproject
 
     def test_strands_no_nest_asyncio_dep(self, tmp_path):
         """Phase 0: Strands must not depend on nest-asyncio."""
