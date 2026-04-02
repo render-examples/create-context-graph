@@ -102,6 +102,10 @@ def main():
     # Claude Code connector reads local files — no credentials needed
     connectors.append(("Claude Code", ClaudeCodeConnector(), {
         "scope": getattr(settings, "claude_code_scope", "current"),
+        "since": getattr(settings, "claude_code_since", None),
+        "max_sessions": getattr(settings, "claude_code_max_sessions", None),
+        "content_mode": getattr(settings, "claude_code_content_mode", None),
+        "base_path": getattr(settings, "claude_code_base_path", None),
     }))
 {% endraw %}{% endif %}
 {% endfor %}
