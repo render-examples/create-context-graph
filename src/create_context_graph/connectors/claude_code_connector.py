@@ -499,4 +499,4 @@ def _tool_call_name(tc: dict[str, Any]) -> str:
 
 def _short_hash(text: str) -> str:
     """Generate a short hash for deduplication."""
-    return hashlib.md5(text.encode()).hexdigest()[:10]  # noqa: S324
+    return hashlib.sha256(text.encode()).hexdigest()[:10]
