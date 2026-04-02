@@ -297,7 +297,7 @@ class GoogleWorkspaceConnector:
         while len(files) < self._max_files:
             params = {
                 "q": query,
-                "fields": "nextPageToken,files(id,name,mimeType,webViewLink,createdTime,modifiedTime,description,owners,parents)",
+                "fields": "nextPageToken,files(id,name,mimeType,webViewLink,createdTime,modifiedTime,description,owners,parents,permissions(type,emailAddress,displayName,role))",
                 "pageSize": str(min(100, self._max_files - len(files))),
                 "orderBy": "modifiedTime desc",
             }
