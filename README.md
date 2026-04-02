@@ -294,8 +294,9 @@ uv venv && uv pip install -e ".[dev]"
 
 # Run tests (no Neo4j or API keys required)
 source .venv/bin/activate
-pytest tests/ -v               # Fast: 691 tests
-pytest tests/ -v --slow        # Full: 900+ tests (includes 176-combo domain x framework matrix + 22 perf tests)
+pytest tests/ -v               # Fast: 874 tests
+pytest tests/ -v --slow        # Full: 1,084 tests (includes domain x framework matrix + perf + generated project tests)
+pytest tests/ --integration    # Integration tests (requires running Neo4j)
 
 # Test a specific scaffold
 create-context-graph /tmp/test-app --domain software-engineering --framework pydanticai --demo-data
@@ -305,8 +306,8 @@ create-context-graph /tmp/test-app --domain software-engineering --framework pyd
 
 | Target | Description | Requirements |
 |--------|-------------|--------------|
-| `make test` | Run fast unit tests (691 tests) | None |
-| `make test-slow` | Full suite including matrix + perf (900+ tests) | None |
+| `make test` | Run fast unit tests (874 tests) | None |
+| `make test-slow` | Full suite including matrix + perf + generated project tests (1,084 tests) | None |
 | `make test-matrix` | Domain × framework matrix only (176 combos) | None |
 | `make test-coverage` | Tests with HTML coverage report | None |
 | `make smoke-test` | E2E smoke tests for 3 key frameworks | Neo4j + LLM API keys |
@@ -347,10 +348,10 @@ GitHub Actions (`.github/workflows/ci.yml`) runs automatically:
 
 | Job | Trigger | Description |
 |-----|---------|-------------|
-| **test** | All pushes + PRs | Unit tests on Python 3.11 and 3.12 (691 tests) |
+| **test** | All pushes + PRs | Unit tests on Python 3.11 and 3.12 (874 tests including security, doc snippets, frontend logic) |
 | **lint** | All pushes + PRs | Ruff linter on `src/` and `tests/` |
-| **matrix** | Push to `main` only | Full suite + 176 domain × framework matrix + 22 perf tests (900+ tests) |
-| **smoke-test** | Push to `main` only | E2E tests for all 8 frameworks (scaffold → install → start → chat) |
+| **matrix** | Push to `main` only | Full suite + 176 domain × framework matrix + perf + generated project tests (1,084 tests) |
+| **smoke-test** | Push to `main` only | Neo4j integration tests + E2E for all 8 frameworks (scaffold → install → start → chat) |
 
 The smoke-test CI job is gated behind a `SMOKE_TESTS_ENABLED` repository variable. To enable it:
 

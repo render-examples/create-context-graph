@@ -191,4 +191,6 @@ The Linear connector imports 12 entity types: issues, projects, cycles, teams, u
 - **Decision traces** -- issue history (state transitions, assignment changes, priority changes) is automatically transformed into decision traces with thought/action/observation chains
 - **Documents** -- issue descriptions, project update bodies, and Linear Docs are all imported as documents for semantic search
 
+The connector validates team keys during authentication — if you provide an invalid key, it lists the available team keys. It automatically retries on rate limits (HTTP 429) with exponential backoff, and logs warnings when comments or history entries exceed page limits.
+
 No external Python package is required — the connector uses Python's built-in `urllib`.

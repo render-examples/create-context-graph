@@ -465,6 +465,22 @@ class TestLinearConnectorCLI:
         except SyntaxError as e:
             pytest.fail(f"linear_connector.py has syntax error: {e}")
 
+    def test_linear_connector_has_decision_traces(self, runner, tmp_path):
+        """Generated linear_connector.py should include decision trace support."""
+        out = tmp_path / "linear-traces"
+        result = runner.invoke(main, [
+            "linear-traces",
+            "--domain", "software-engineering",
+            "--framework", "pydanticai",
+            "--connector", "linear",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        connector_path = out / "backend" / "app" / "connectors" / "linear_connector.py"
+        source = connector_path.read_text()
+        assert "_describe_history_step" in source
+        assert '"traces"' in source or "'traces'" in source
+
     def test_linear_with_multiple_connectors(self, runner, tmp_path):
         """Linear connector can be combined with other connectors."""
         out = tmp_path / "linear-multi"
