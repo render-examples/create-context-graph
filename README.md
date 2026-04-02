@@ -155,6 +155,9 @@ Import real data from your existing tools instead of (or in addition to) synthet
 | **Google Calendar** | Events, attendees (last 90 days) | Google Workspace CLI or OAuth2 |
 | **Salesforce** | Accounts, contacts, opportunities | Username/password |
 | **Linear** | Issues, projects, cycles, teams, users, labels, comments, milestones, initiatives, attachments + decision traces from history | Personal API key |
+| **Google Workspace** | Drive files, comment threads (as decision traces), revisions, Drive Activity, Calendar events, Gmail metadata | Google OAuth 2.0 |
+
+The **Google Workspace connector** extracts resolved comment threads from Google Docs as first-class decision traces — capturing the question, deliberation, resolution, and participants. Combined with Linear, it provides the full decision lifecycle: from meeting discussion to code execution.
 
 Connectors run at scaffold time to populate initial data. They're also generated into your project so you can re-import with `make import`:
 
@@ -240,9 +243,18 @@ Options:
   --framework TEXT          Agent framework (pydanticai, claude-agent-sdk, openai-agents, langgraph, crewai, strands, google-adk, anthropic-tools)
   --demo-data               Generate synthetic demo data
   --custom-domain TEXT      Generate custom domain from description (requires --anthropic-api-key)
-  --connector TEXT          SaaS connector to enable; repeatable (github, slack, jira, notion, gmail, gcal, salesforce, linear)
+  --connector TEXT          SaaS connector to enable; repeatable (github, slack, jira, notion, gmail, gcal, salesforce, linear, google-workspace)
   --linear-api-key TEXT    Linear API key (required for --connector linear) [env: LINEAR_API_KEY]
   --linear-team TEXT       Linear team key to filter import (e.g., ENG) [env: LINEAR_TEAM]
+  --gws-folder-id TEXT     Google Drive folder ID to scope import [env: GWS_FOLDER_ID]
+  --gws-include-comments / --gws-no-comments  Import comment threads (default: on)
+  --gws-include-revisions / --gws-no-revisions  Import revision history (default: on)
+  --gws-include-activity / --gws-no-activity  Import Drive Activity (default: on)
+  --gws-include-calendar   Import Calendar events (default: off)
+  --gws-include-gmail      Import Gmail thread metadata (default: off)
+  --gws-since TEXT         Import data since date (ISO format, default: 90 days ago)
+  --gws-mime-types TEXT    MIME types to include (default: docs,sheets,slides)
+  --gws-max-files INT      Maximum files to import (default: 500)
   --ingest                  Ingest data into Neo4j after generation
   --neo4j-uri TEXT          Neo4j connection URI [env: NEO4J_URI]
   --neo4j-username TEXT     Neo4j username [env: NEO4J_USERNAME]
