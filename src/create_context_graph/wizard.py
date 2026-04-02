@@ -146,9 +146,12 @@ def run_wizard() -> ProjectConfig:
                     value = questionary.password(p["prompt"]).ask()
                 else:
                     value = questionary.text(p["prompt"]).ask()
-                if not value:
+                if value is None:
                     raise SystemExit("Aborted.")
-                creds[p["name"]] = value
+                if not value and not p.get("optional"):
+                    raise SystemExit("Aborted.")
+                if value:
+                    creds[p["name"]] = value
             saas_credentials[conn_id] = creds
 
     # Step 3: Domain selection

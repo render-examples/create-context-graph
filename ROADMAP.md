@@ -960,6 +960,90 @@ Schema introspection of Linear's GraphQL API (494 types) revealed significant ad
 
 ---
 
+## Phase 16 — Linear Connector Hardening & Test Suite Expansion (v0.8.3)
+
+### Linear connector improvements (10 improvements)
+- **Named constants**: 18 constants replacing hardcoded page sizes, rate limits, retry counts (`ISSUES_PAGE_SIZE`, `MAX_PAGES`, `RATE_LIMIT_THRESHOLD`, `MAX_RETRIES`, etc.)
+- **Structured logging**: `logging.getLogger(__name__)` with info/debug/warning/error throughout (auth, fetch summary, rate limits, pagination, truncation)
+- **Error handling**: `URLError` (network), `JSONDecodeError` (malformed response), GraphQL-level `errors` field (logged as warning, data still returned)
+- **Pagination safety**: `max_pages` parameter prevents infinite loops; null-safe data traversal with `(x or {})` pattern
+- **Rate limit 429**: `_retry_on_rate_limit()` method with exponential backoff up to `MAX_RETRIES` attempts
+- **Null safety**: `_safe_nodes()` helper extracts connection nodes from fields that might be `None`; applied throughout fetch()
+- **History/comment limits**: Comments increased from 20 → 100, history from 15 → 50; `pageInfo { hasNextPage }` with truncation warnings
+- **Team key validation**: `authenticate()` validates team_key against available teams, lists available keys on mismatch
+- **Incremental sync**: `fetch(updated_after="ISO8601")` adds `updatedAt: { gt: ... }` filter to issue queries
+- **Template parity**: `_describe_history_step()` and decision trace generation ported to `linear_connector.py.j2`
+
+### CLI fix
+- Optional credential prompts no longer abort the wizard when left blank (Linear team key)
+
+### Test suite expansion (5 new test files, 133 new tests → 874 passing, 1,084 collected)
+
+#### `tests/test_security.py` (84 tests) — Cypher injection prevention
+- Agent tool Cypher parameterization across all 22 domains (`$param` placeholders, no string literals in WHERE)
+- Domain scoping verification (`$domain` reference in queries)
+- Generated code static analysis: `execute_cypher` uses driver parameterization, no f-string user input, max_length on request models, GDS label validation
+- `run_cypher` tool safety across 4 frameworks: JSON parameter parsing, param passthrough, domain default
+
+#### `tests/test_doc_snippets.py` (8 tests) — Documentation validation
+- YAML ontology examples from docs parse correctly (bookstore example, customizing tutorial)
+- CLI flags documented in `cli-options.md` exist in Click command
+- Cypher snippets from Linear tutorial have valid structure (MATCH/RETURN)
+- Make targets referenced in docs exist in Makefile template
+- Environment variable names in docs match `.env.example` template
+
+#### `tests/test_frontend_logic.py` (23 tests) — SSE parsing & contract
+- Python SSE event parser: all 6 event types, multi-event streams, malformed JSON
+- Thinking/response splitting: THINKING_PATTERNS, CONTINUATION_PATTERNS, markdown breaks, error bypass
+- Backend/frontend event type contract: routes.py.j2 emits same events ChatInterface.tsx.j2 handles
+- Generated frontend structure: all event handlers, schema view mode, AbortController
+
+#### `tests/test_integration.py` (7 tests, `@pytest.mark.integration`) — Neo4j database
+- Schema DDL execution: constraints and indexes apply without error
+- Fixture ingestion: entity counts, document nodes, relationships created
+- Agent tool queries execute against seeded data without errors
+- Domain scoping: two domains in same database, filter isolates correctly
+
+#### `tests/test_generated_tests.py` (5 tests, `@pytest.mark.slow`) — Generated project tests
+- Scaffolded project test discovery: `pytest --collect-only` finds test_health and test_scenarios
+- Generated tests pass with mocked Neo4j for 4 frameworks (pydanticai, claude-agent-sdk, langgraph, anthropic-tools)
+
+#### Linear connector tests (`test_connectors.py` +18, `test_cli.py` +1)
+- Error handling: URLError, JSONDecodeError, GraphQL errors logged
+- Team validation: valid key succeeds, invalid key lists available keys
+- Pagination safety: max_pages limit stops infinite loops
+- Null safety: all sub-objects `None` doesn't crash
+- Truncation warnings: comments/history hasNextPage logged
+- Logging: auth success, fetch summary
+- Rate limit: 429 retry succeeds, 429 exhausts retries
+- Incremental sync: updated_after filter in query, absent when not provided
+- `_safe_nodes` helper
+- Template has decision traces
+
+### CI changes
+- Integration tests (`--integration`) run in smoke-test job before E2E tests, using same Neo4j credentials
+- `pyproject.toml`: added `integration` marker
+- `conftest.py`: added `--integration` flag with auto-skip
+
+### Files created
+- `tests/test_security.py`
+- `tests/test_doc_snippets.py`
+- `tests/test_frontend_logic.py`
+- `tests/test_integration.py`
+- `tests/test_generated_tests.py`
+
+### Files modified
+- `src/create_context_graph/connectors/linear_connector.py` — all 10 improvements
+- `src/create_context_graph/templates/backend/connectors/linear_connector.py.j2` — template parity
+- `src/create_context_graph/wizard.py` — optional credential prompt fix
+- `tests/test_connectors.py` — 18 new Linear tests (79 total)
+- `tests/test_cli.py` — 1 new template test (34 total)
+- `tests/conftest.py` — integration marker support
+- `pyproject.toml` — integration marker registration
+- `.github/workflows/ci.yml` — integration tests in smoke-test job
+
+---
+
 ## Summary
 
 | Phase | Description | Status | Tests |
@@ -982,3 +1066,4 @@ Schema introspection of Linear's GraphQL API (494 types) revealed significant ad
 | 14 | v0.7.1 Embedding Regression, Data Quality & Docs | **Complete** | (included above) |
 | 15 | Linear Data Import Connector | **Complete** | 705 passing |
 | 15b | Linear Deep Graph: Relations, History, Decisions | **Complete** | 741 passing |
+| 16 | Linear Connector Hardening & Test Suite Expansion | **Complete** | 874 passing (1,084 collected) |

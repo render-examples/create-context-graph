@@ -354,3 +354,5 @@ RETURN a.title, a.url, a.sourceType
 - **Customize the domain** -- Edit `data/ontology.yaml` to add domain-specific entity types and tools
 - **Build custom agent tools** -- Add Cypher-powered tools to the agent for your specific workflow patterns
 - **Set up periodic sync** -- Run `make import-and-seed` on a schedule to keep the graph fresh
+- **Enable debug logging** -- Set `LOG_LEVEL=DEBUG` to see detailed import progress including entity counts, pagination, and rate limit status
+- **Troubleshoot imports** -- The connector validates team keys during authentication (listing available keys on mismatch), retries automatically on rate limits (HTTP 429), and logs warnings when comments or history entries are truncated

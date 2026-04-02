@@ -638,9 +638,8 @@ class TestLinearConnector:
         mock_urlopen.side_effect = self._make_graphql_mock(responses)
 
         conn = get_connector("linear")
-        conn.authenticate({"api_key": "lin_api_test123", "team_key": "NONEXISTENT"})
         with pytest.raises(ValueError, match="not found"):
-            conn.fetch()
+            conn.authenticate({"api_key": "lin_api_test123", "team_key": "NONEXISTENT"})
 
     @patch("urllib.request.urlopen")
     def test_issue_name_format(self, mock_urlopen):
@@ -1127,6 +1126,357 @@ class TestLinearConnector:
         assert PRIORITY_LABELS[0] == "No Priority"
         assert PRIORITY_LABELS[1] == "Urgent"
         assert PRIORITY_LABELS[4] == "Low"
+
+    # --- Constants defined (Improvement 7) ---
+
+    def test_constants_defined(self):
+        from create_context_graph.connectors import linear_connector as lc
+        assert lc.ISSUES_PAGE_SIZE == 25
+        assert lc.MAX_PAGES == 100
+        assert lc.RATE_LIMIT_THRESHOLD == 10
+        assert lc.MAX_COMMENTS_PER_ISSUE == 100
+        assert lc.MAX_HISTORY_PER_ISSUE == 50
+        assert lc.MAX_RETRIES == 3
+
+    # --- Error handling (Improvement 1) ---
+
+    @patch("urllib.request.urlopen")
+    def test_url_error_raises_runtime_error(self, mock_urlopen):
+        import urllib.error
+        mock_urlopen.side_effect = urllib.error.URLError("Connection refused")
+        from create_context_graph.connectors.linear_connector import LinearConnector
+        conn = LinearConnector()
+        conn._headers = {"Authorization": "key", "Content-Type": "application/json"}
+        conn._api_key = "key"
+        with pytest.raises(RuntimeError, match="Network error"):
+            conn._graphql_request("query { viewer { id } }")
+
+    @patch("urllib.request.urlopen")
+    def test_json_decode_error_raises_runtime_error(self, mock_urlopen):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = b"not json"
+        mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        mock_resp.headers = MagicMock()
+        mock_resp.headers.get = MagicMock(return_value="100")
+        mock_urlopen.return_value = mock_resp
+
+        from create_context_graph.connectors.linear_connector import LinearConnector
+        conn = LinearConnector()
+        conn._headers = {"Authorization": "key", "Content-Type": "application/json"}
+        conn._api_key = "key"
+        with pytest.raises(RuntimeError, match="Invalid JSON"):
+            conn._graphql_request("query { viewer { id } }")
+
+    @patch("urllib.request.urlopen")
+    def test_graphql_errors_logged_but_data_returned(self, mock_urlopen):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps({
+            "data": {"viewer": {"id": "u1", "name": "Test", "email": "t@t.com"}},
+            "errors": [{"message": "Deprecated field used"}],
+        }).encode()
+        mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        mock_resp.headers = MagicMock()
+        mock_resp.headers.get = MagicMock(return_value="100")
+        mock_urlopen.return_value = mock_resp
+
+        from create_context_graph.connectors.linear_connector import LinearConnector
+        conn = LinearConnector()
+        conn._headers = {"Authorization": "key", "Content-Type": "application/json"}
+        conn._api_key = "key"
+        result = conn._graphql_request("query { viewer { id } }")
+        # Data should still be returned
+        assert result["data"]["viewer"]["id"] == "u1"
+        # Errors should also be present
+        assert "errors" in result
+
+    # --- Team key validation (Improvement 2) ---
+
+    @patch("urllib.request.urlopen")
+    def test_authenticate_validates_team_key(self, mock_urlopen):
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_graphql_mock(responses)
+
+        conn = get_connector("linear")
+        # Should not raise — ENG exists
+        conn.authenticate({"api_key": "lin_api_test123", "team_key": "ENG"})
+
+    @patch("urllib.request.urlopen")
+    def test_authenticate_invalid_team_key_lists_available(self, mock_urlopen):
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_graphql_mock(responses)
+
+        conn = get_connector("linear")
+        with pytest.raises(ValueError, match="Available team keys: ENG"):
+            conn.authenticate({"api_key": "lin_api_test123", "team_key": "BADKEY"})
+
+    # --- Pagination safety (Improvement 3) ---
+
+    @patch("urllib.request.urlopen")
+    def test_pagination_max_pages_limit(self, mock_urlopen):
+        """Pagination should stop after MAX_PAGES even if hasNextPage is always True."""
+        from create_context_graph.connectors.linear_connector import LinearConnector
+
+        call_count = [0]
+
+        def mock_fn(req):
+            body = json.loads(req.data.decode())
+            query = body.get("query", "")
+            if "viewer" in query:
+                resp_data = {"data": {"viewer": {"id": "u1", "name": "Test", "email": "t@t.com"}}}
+            else:
+                call_count[0] += 1
+                resp_data = {"data": {"users": {
+                    "pageInfo": {"hasNextPage": True, "endCursor": f"cursor-{call_count[0]}"},
+                    "nodes": [{"id": f"user-{call_count[0]}", "name": f"User {call_count[0]}",
+                               "displayName": f"U{call_count[0]}", "email": f"u{call_count[0]}@t.com",
+                               "admin": False, "active": True}],
+                }}}
+            mock_resp = MagicMock()
+            mock_resp.read.return_value = json.dumps(resp_data).encode()
+            mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+            mock_resp.__exit__ = MagicMock(return_value=False)
+            mock_resp.headers = MagicMock()
+            mock_resp.headers.get = MagicMock(return_value="100")
+            return mock_resp
+
+        mock_urlopen.side_effect = mock_fn
+
+        conn = LinearConnector()
+        conn.authenticate({"api_key": "test"})
+        # Use a small max_pages to keep test fast
+        users = conn._paginate(
+            "query FetchUsers($cursor: String) { users(first: 100, after: $cursor) { pageInfo { hasNextPage endCursor } nodes { id name displayName email admin active } } }",
+            {}, ["users"], max_pages=3,
+        )
+        assert len(users) == 3
+        assert call_count[0] == 3
+
+    # --- Null safety (Improvement 4) ---
+
+    @patch("urllib.request.urlopen")
+    def test_null_nested_fields_no_crash(self, mock_urlopen):
+        """Issues with explicitly None sub-objects should not crash."""
+        responses = self._standard_responses()
+        # Override issue with all sub-objects set to None
+        null_issue = {
+            "id": "issue-null", "identifier": "ENG-999", "title": "Null test",
+            "description": "", "priority": 0, "priorityLabel": "No Priority",
+            "estimate": None, "number": 999, "dueDate": None,
+            "createdAt": "2026-03-25", "updatedAt": "2026-03-25",
+            "completedAt": None, "canceledAt": None, "startedAt": None,
+            "branchName": "", "trashed": False, "url": "",
+            "state": None, "assignee": None, "creator": None,
+            "team": None, "project": None, "projectMilestone": None,
+            "cycle": None, "labels": None, "parent": None,
+            "children": None, "relations": None,
+            "attachments": None, "comments": None, "history": None,
+        }
+        responses["issues(first"] = {"data": {"issues": {
+            "pageInfo": {"hasNextPage": False, "endCursor": None},
+            "nodes": [null_issue],
+        }}}
+        mock_urlopen.side_effect = self._make_graphql_mock(responses)
+
+        conn = get_connector("linear")
+        conn.authenticate({"api_key": "lin_api_test123"})
+        result = conn.fetch()
+        # Should not crash, and should have the issue
+        issue_names = [i["name"] for i in result.entities["Issue"]]
+        assert "ENG-999 Null test" in issue_names
+
+    # --- Truncation warnings (Improvement 5) ---
+
+    @patch("urllib.request.urlopen")
+    def test_comment_truncation_warning(self, mock_urlopen, caplog):
+        """Warn when comments have hasNextPage=True."""
+        import logging
+        responses = self._standard_responses()
+        # Modify issue to have truncated comments
+        issue_node = responses["issues(first"]["data"]["issues"]["nodes"][0]
+        issue_node["comments"] = {
+            "pageInfo": {"hasNextPage": True},
+            "nodes": [{"id": "c1", "body": "test", "createdAt": "2026-03-25",
+                        "updatedAt": "2026-03-25", "resolvedAt": None,
+                        "user": {"id": "user-1", "name": "Alice", "displayName": "Alice", "email": "a@t.com"},
+                        "parent": None, "resolvingUser": None}],
+        }
+        mock_urlopen.side_effect = self._make_graphql_mock(responses)
+
+        with caplog.at_level(logging.WARNING, logger="create_context_graph.connectors.linear_connector"):
+            conn = get_connector("linear")
+            conn.authenticate({"api_key": "lin_api_test123"})
+            conn.fetch()
+        assert any("comments" in r.message and "only first page" in r.message for r in caplog.records)
+
+    @patch("urllib.request.urlopen")
+    def test_history_truncation_warning(self, mock_urlopen, caplog):
+        """Warn when history has hasNextPage=True."""
+        import logging
+        responses = self._standard_responses()
+        issue_node = responses["issues(first"]["data"]["issues"]["nodes"][0]
+        issue_node["history"] = {
+            "pageInfo": {"hasNextPage": True},
+            "nodes": [
+                {"id": "h1", "createdAt": "2026-03-24",
+                 "fromState": {"name": "Backlog", "type": "backlog"},
+                 "toState": {"name": "In Progress", "type": "started"},
+                 "fromAssignee": None, "toAssignee": None,
+                 "fromPriority": None, "toPriority": None,
+                 "actor": {"id": "user-1", "name": "Alice", "displayName": "Alice", "email": "a@t.com"},
+                 "addedLabels": [], "removedLabels": []},
+                {"id": "h2", "createdAt": "2026-03-25",
+                 "fromState": {"name": "In Progress", "type": "started"},
+                 "toState": {"name": "Done", "type": "completed"},
+                 "fromAssignee": None, "toAssignee": None,
+                 "fromPriority": None, "toPriority": None,
+                 "actor": {"id": "user-1", "name": "Alice", "displayName": "Alice", "email": "a@t.com"},
+                 "addedLabels": [], "removedLabels": []},
+            ],
+        }
+        mock_urlopen.side_effect = self._make_graphql_mock(responses)
+
+        with caplog.at_level(logging.WARNING, logger="create_context_graph.connectors.linear_connector"):
+            conn = get_connector("linear")
+            conn.authenticate({"api_key": "lin_api_test123"})
+            conn.fetch()
+        assert any("history" in r.message and "incomplete" in r.message for r in caplog.records)
+
+    # --- Logging (Improvement 6) ---
+
+    @patch("urllib.request.urlopen")
+    def test_logging_auth_success(self, mock_urlopen, caplog):
+        import logging
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_graphql_mock(responses)
+
+        with caplog.at_level(logging.INFO, logger="create_context_graph.connectors.linear_connector"):
+            conn = get_connector("linear")
+            conn.authenticate({"api_key": "lin_api_test123"})
+        assert any("Authenticated as" in r.message for r in caplog.records)
+
+    @patch("urllib.request.urlopen")
+    def test_logging_fetch_summary(self, mock_urlopen, caplog):
+        import logging
+        responses = self._standard_responses()
+        mock_urlopen.side_effect = self._make_graphql_mock(responses)
+
+        with caplog.at_level(logging.INFO, logger="create_context_graph.connectors.linear_connector"):
+            conn = get_connector("linear")
+            conn.authenticate({"api_key": "lin_api_test123"})
+            conn.fetch()
+        assert any("Linear import complete" in r.message for r in caplog.records)
+
+    # --- Rate limit 429 (Improvement 8) ---
+
+    @patch("time.sleep")
+    @patch("urllib.request.urlopen")
+    def test_http_429_retries_and_succeeds(self, mock_urlopen, mock_sleep):
+        import io
+        import urllib.error
+        success_resp = MagicMock()
+        success_resp.read.return_value = json.dumps(
+            {"data": {"viewer": {"id": "u1", "name": "Test", "email": "t@t.com"}}}
+        ).encode()
+        success_resp.__enter__ = MagicMock(return_value=success_resp)
+        success_resp.__exit__ = MagicMock(return_value=False)
+        success_resp.headers = MagicMock()
+        success_resp.headers.get = MagicMock(return_value="100")
+
+        # First call raises 429, second (retry) succeeds
+        mock_urlopen.side_effect = [
+            urllib.error.HTTPError(
+                "https://api.linear.app/graphql", 429, "Too Many Requests", {}, io.BytesIO(b"")
+            ),
+            success_resp,
+        ]
+
+        from create_context_graph.connectors.linear_connector import LinearConnector
+        conn = LinearConnector()
+        conn._headers = {"Authorization": "key", "Content-Type": "application/json"}
+        conn._api_key = "key"
+        result = conn._graphql_request("query { viewer { id } }")
+        assert result["data"]["viewer"]["id"] == "u1"
+        # Verify sleep was called for backoff
+        mock_sleep.assert_called()
+
+    @patch("time.sleep")
+    @patch("urllib.request.urlopen")
+    def test_http_429_exhausts_retries(self, mock_urlopen, mock_sleep):
+        import io
+        import urllib.error
+        # All calls raise 429
+        mock_urlopen.side_effect = urllib.error.HTTPError(
+            "https://api.linear.app/graphql", 429, "Too Many Requests", {}, io.BytesIO(b"")
+        )
+
+        from create_context_graph.connectors.linear_connector import LinearConnector
+        conn = LinearConnector()
+        conn._headers = {"Authorization": "key", "Content-Type": "application/json"}
+        conn._api_key = "key"
+        with pytest.raises(RuntimeError, match="rate limit exceeded"):
+            conn._graphql_request("query { viewer { id } }")
+
+    # --- Incremental sync (Improvement 9) ---
+
+    @patch("urllib.request.urlopen")
+    def test_fetch_with_updated_after(self, mock_urlopen):
+        """Verify updated_after parameter adds filter to issue query."""
+        responses = self._standard_responses()
+        captured_queries = []
+        original_mock = self._make_graphql_mock(responses)
+
+        def capturing_mock(req):
+            body = json.loads(req.data.decode())
+            captured_queries.append(body)
+            return original_mock(req)
+
+        mock_urlopen.side_effect = capturing_mock
+
+        conn = get_connector("linear")
+        conn.authenticate({"api_key": "lin_api_test123"})
+        conn.fetch(updated_after="2026-03-25T00:00:00Z")
+
+        # Find the issue query
+        issue_queries = [q for q in captured_queries if "issues(first" in q.get("query", "")]
+        assert len(issue_queries) > 0
+        iq = issue_queries[0]
+        assert "updatedAfter" in iq["query"]
+        assert iq["variables"].get("updatedAfter") == "2026-03-25T00:00:00Z"
+
+    @patch("urllib.request.urlopen")
+    def test_fetch_without_updated_after_no_filter(self, mock_urlopen):
+        """Without updated_after, issue query should not have updatedAfter variable."""
+        responses = self._standard_responses()
+        captured_queries = []
+        original_mock = self._make_graphql_mock(responses)
+
+        def capturing_mock(req):
+            body = json.loads(req.data.decode())
+            captured_queries.append(body)
+            return original_mock(req)
+
+        mock_urlopen.side_effect = capturing_mock
+
+        conn = get_connector("linear")
+        conn.authenticate({"api_key": "lin_api_test123"})
+        conn.fetch()
+
+        issue_queries = [q for q in captured_queries if "issues(first" in q.get("query", "")]
+        assert len(issue_queries) > 0
+        iq = issue_queries[0]
+        assert "updatedAfter" not in iq.get("query", "")
+
+    # --- _safe_nodes helper ---
+
+    def test_safe_nodes_helper(self):
+        from create_context_graph.connectors.linear_connector import _safe_nodes
+        assert _safe_nodes(None, "labels") == []
+        assert _safe_nodes({}, "labels") == []
+        assert _safe_nodes({"labels": None}, "labels") == []
+        assert _safe_nodes({"labels": {}}, "labels") == []
+        assert _safe_nodes({"labels": {"nodes": [{"id": "1"}]}}, "labels") == [{"id": "1"}]
 
 
 # ---------------------------------------------------------------------------
