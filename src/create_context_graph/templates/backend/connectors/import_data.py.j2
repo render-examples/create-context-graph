@@ -29,6 +29,8 @@ from app.connectors.salesforce_connector import SalesforceConnector
 from app.connectors.linear_connector import LinearConnector
 {% endraw %}{% elif conn == 'google-workspace' %}{% raw %}
 from app.connectors.google_workspace_connector import GoogleWorkspaceConnector
+{% endraw %}{% elif conn == 'claude-code' %}{% raw %}
+from app.connectors.claude_code_connector import ClaudeCodeConnector
 {% endraw %}{% endif %}{% endfor %}
 {% raw %}
 from app.config import settings
@@ -95,6 +97,15 @@ def main():
         "client_id": getattr(settings, "google_client_id", "") or "",
         "client_secret": getattr(settings, "google_client_secret", "") or "",
         "folder_id": getattr(settings, "gws_folder_id", "") or "",
+    }))
+{% endraw %}{% elif conn == 'claude-code' %}{% raw %}
+    # Claude Code connector reads local files — no credentials needed
+    connectors.append(("Claude Code", ClaudeCodeConnector(), {
+        "scope": getattr(settings, "claude_code_scope", "current"),
+        "since": getattr(settings, "claude_code_since", None),
+        "max_sessions": getattr(settings, "claude_code_max_sessions", None),
+        "content_mode": getattr(settings, "claude_code_content_mode", None),
+        "base_path": getattr(settings, "claude_code_base_path", None),
     }))
 {% endraw %}{% endif %}
 {% endfor %}

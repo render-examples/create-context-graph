@@ -53,9 +53,14 @@ console = Console()
 @click.option("--openai-api-key", envvar="OPENAI_API_KEY", help="OpenAI API key for LLM generation")
 @click.option("--google-api-key", envvar="GOOGLE_API_KEY", help="Google/Gemini API key (required for google-adk framework)")
 @click.option("--custom-domain", type=str, help="Natural language description for custom domain generation (requires --anthropic-api-key)")
-@click.option("--connector", multiple=True, help="SaaS connector to enable (github, slack, jira, notion, gmail, gcal, salesforce, linear, google-workspace)")
+@click.option("--connector", multiple=True, help="SaaS connector to enable (github, slack, jira, notion, gmail, gcal, salesforce, linear, google-workspace, claude-code)")
 @click.option("--linear-api-key", envvar="LINEAR_API_KEY", help="Linear API key (required for --connector linear)")
 @click.option("--linear-team", envvar="LINEAR_TEAM", help="Linear team key to filter import (e.g., ENG)")
+@click.option("--claude-code-scope", type=click.Choice(["current", "all"]), default="current", help="Import sessions from current project (default) or all projects")
+@click.option("--claude-code-project", help="Explicit project path to import Claude Code sessions for")
+@click.option("--claude-code-since", help="Import Claude Code sessions since date (ISO format)")
+@click.option("--claude-code-max-sessions", type=int, default=0, help="Maximum number of Claude Code sessions to import (0=all)")
+@click.option("--claude-code-content", type=click.Choice(["truncated", "full", "none"]), default="truncated", help="Content storage mode for Claude Code messages")
 @click.option("--gws-folder-id", envvar="GWS_FOLDER_ID", help="Google Drive folder ID to scope import")
 @click.option("--gws-include-comments/--gws-no-comments", default=True, help="Import comment threads from Docs/Sheets/Slides")
 @click.option("--gws-include-revisions/--gws-no-revisions", default=True, help="Import revision history metadata")
@@ -99,6 +104,11 @@ def main(
     gws_since: str | None,
     gws_mime_types: str,
     gws_max_files: int,
+    claude_code_scope: str,
+    claude_code_project: str | None,
+    claude_code_since: str | None,
+    claude_code_max_sessions: int,
+    claude_code_content: str,
     output_dir: str | None,
     demo: bool,
     dry_run: bool,
@@ -241,6 +251,15 @@ def main(
                 "max_files": str(gws_max_files),
             }
             config.saas_credentials["google-workspace"] = creds
+        if "claude-code" in connector:
+            creds = {
+                "scope": claude_code_scope,
+                "project_filter": claude_code_project or "",
+                "since": claude_code_since or "",
+                "max_sessions": str(claude_code_max_sessions),
+                "content_mode": claude_code_content,
+            }
+            config.saas_credentials["claude-code"] = creds
         # Warn if google-adk is selected without a Google API key
         if config.resolved_framework == "google-adk" and not google_api_key:
             console.print(

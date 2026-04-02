@@ -77,11 +77,11 @@ class TestNormalizedData:
 
 
 class TestConnectorRegistry:
-    def test_all_nine_registered(self):
-        assert len(CONNECTOR_REGISTRY) == 9
+    def test_all_registered(self):
+        assert len(CONNECTOR_REGISTRY) == 10
 
     def test_expected_connectors(self):
-        expected = {"github", "notion", "jira", "slack", "gmail", "gcal", "salesforce", "linear", "google-workspace"}
+        expected = {"github", "notion", "jira", "slack", "gmail", "gcal", "salesforce", "linear", "google-workspace", "claude-code"}
         assert set(CONNECTOR_REGISTRY.keys()) == expected
 
     def test_get_connector(self):
@@ -94,7 +94,7 @@ class TestConnectorRegistry:
 
     def test_list_connectors(self):
         result = list_connectors()
-        assert len(result) == 9
+        assert len(result) == 10
         ids = {c["id"] for c in result}
         assert "github" in ids
 
@@ -2160,3 +2160,812 @@ class TestGoogleWorkspaceConnector:
         assert len(result.entities["DecisionThread"]) == 0
         assert len(result.entities["Reply"]) == 0
         assert len(result.traces) == 0
+
+
+# ---------------------------------------------------------------------------
+# Claude Code connector tests
+# ---------------------------------------------------------------------------
+
+
+class TestClaudeCodeConnector:
+    """Tests for the Claude Code session history connector."""
+
+    @staticmethod
+    def _write_session_jsonl(
+        project_dir, session_id, messages, *, git_branch="main", cwd="/tmp/project"
+    ):
+        """Create a properly formatted JSONL session file."""
+        jsonl_path = project_dir / f"{session_id}.jsonl"
+        lines = []
+        # Queue operation header
+        lines.append(json.dumps({
+            "type": "queue-operation",
+            "operation": "enqueue",
+            "timestamp": "2026-04-01T10:00:00.000Z",
+            "sessionId": session_id,
+        }))
+        for i, msg in enumerate(messages):
+            entry = {
+                "type": msg["type"],
+                "message": msg["message"],
+                "uuid": msg.get("uuid", f"uuid-{i:04d}"),
+                "parentUuid": msg.get("parentUuid"),
+                "timestamp": msg.get("timestamp", f"2026-04-01T10:{i:02d}:00.000Z"),
+                "sessionId": session_id,
+                "gitBranch": git_branch,
+                "cwd": cwd,
+                "version": "2.1.84",
+            }
+            if msg.get("isMeta"):
+                entry["isMeta"] = True
+            lines.append(json.dumps(entry))
+        jsonl_path.write_text("\n".join(lines))
+        return jsonl_path
+
+    @staticmethod
+    def _basic_messages():
+        """Return a minimal set of user + assistant messages."""
+        return [
+            {
+                "type": "user",
+                "message": {"role": "user", "content": "Hello, help me with my project"},
+                "uuid": "u-0001",
+                "parentUuid": None,
+                "timestamp": "2026-04-01T10:00:00.000Z",
+            },
+            {
+                "type": "assistant",
+                "message": {
+                    "role": "assistant",
+                    "content": [
+                        {"type": "text", "text": "Sure, let me help you."},
+                    ],
+                    "usage": {"input_tokens": 100, "output_tokens": 50},
+                },
+                "uuid": "a-0001",
+                "parentUuid": "u-0001",
+                "timestamp": "2026-04-01T10:01:00.000Z",
+            },
+        ]
+
+    @staticmethod
+    def _messages_with_tool_calls():
+        """Return messages with tool_use and tool_result blocks."""
+        return [
+            {
+                "type": "user",
+                "message": {"role": "user", "content": "Read and fix the config file"},
+                "uuid": "u-0001",
+                "parentUuid": None,
+                "timestamp": "2026-04-01T10:00:00.000Z",
+            },
+            {
+                "type": "assistant",
+                "message": {
+                    "role": "assistant",
+                    "content": [
+                        {"type": "text", "text": "Let me read the file."},
+                        {
+                            "type": "tool_use",
+                            "id": "tool-read-1",
+                            "name": "Read",
+                            "input": {"file_path": "/tmp/project/config.py"},
+                        },
+                    ],
+                    "usage": {"input_tokens": 200, "output_tokens": 100},
+                },
+                "uuid": "a-0001",
+                "parentUuid": "u-0001",
+                "timestamp": "2026-04-01T10:01:00.000Z",
+            },
+            {
+                "type": "user",
+                "message": {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": "tool-read-1",
+                            "content": "DATABASE_URL = 'postgres://localhost/mydb'",
+                        },
+                    ],
+                },
+                "uuid": "u-0002",
+                "parentUuid": "a-0001",
+                "timestamp": "2026-04-01T10:01:05.000Z",
+            },
+            {
+                "type": "assistant",
+                "message": {
+                    "role": "assistant",
+                    "content": [
+                        {"type": "text", "text": "I'll fix the config."},
+                        {
+                            "type": "tool_use",
+                            "id": "tool-edit-1",
+                            "name": "Edit",
+                            "input": {
+                                "file_path": "/tmp/project/config.py",
+                                "old_string": "DATABASE_URL = 'postgres://localhost/mydb'",
+                                "new_string": "DATABASE_URL = os.getenv('DATABASE_URL', 'postgres://localhost/mydb')",
+                            },
+                        },
+                    ],
+                    "usage": {"input_tokens": 300, "output_tokens": 150},
+                },
+                "uuid": "a-0002",
+                "parentUuid": "u-0002",
+                "timestamp": "2026-04-01T10:02:00.000Z",
+            },
+            {
+                "type": "user",
+                "message": {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": "tool-edit-1",
+                            "content": "File edited successfully.",
+                        },
+                    ],
+                },
+                "uuid": "u-0003",
+                "parentUuid": "a-0002",
+                "timestamp": "2026-04-01T10:02:05.000Z",
+            },
+        ]
+
+    def _make_connector(self, tmp_path, messages=None, *, session_id="sess-0001", **kwargs):
+        """Create a connector with a synthetic project directory."""
+        from create_context_graph.connectors.claude_code_connector import ClaudeCodeConnector
+
+        project_dir = tmp_path / "-tmp-project"
+        project_dir.mkdir()
+        self._write_session_jsonl(
+            project_dir, session_id, messages or self._basic_messages(), **kwargs
+        )
+
+        conn = ClaudeCodeConnector()
+        conn.authenticate({
+            "base_path": str(tmp_path),
+            "scope": "all",
+            "content_mode": "truncated",
+        })
+        return conn
+
+    # --- Registration tests ---
+
+    def test_connector_registered(self):
+        assert "claude-code" in CONNECTOR_REGISTRY
+
+    def test_get_connector(self):
+        conn = get_connector("claude-code")
+        assert conn.service_name == "Claude Code"
+
+    def test_credential_prompts_empty(self):
+        conn = get_connector("claude-code")
+        assert conn.get_credential_prompts() == []
+
+    def test_listed_in_connectors(self):
+        connectors = list_connectors()
+        ids = [c["id"] for c in connectors]
+        assert "claude-code" in ids
+
+    # --- Parser / discovery tests ---
+
+    def test_discover_projects(self, tmp_path):
+        from create_context_graph.connectors._claude_code.parser import discover_projects
+
+        proj = tmp_path / "-Users-will-projects-myapp"
+        proj.mkdir()
+        (proj / "sess-1234.jsonl").write_text("{}")
+
+        projects = discover_projects(tmp_path)
+        assert len(projects) == 1
+        assert projects[0]["session_count"] == 1
+        assert "/Users/will/projects/myapp" in projects[0]["decoded_path"]
+
+    def test_discover_projects_empty(self, tmp_path):
+        from create_context_graph.connectors._claude_code.parser import discover_projects
+
+        projects = discover_projects(tmp_path)
+        assert projects == []
+
+    def test_discover_sessions(self, tmp_path):
+        from create_context_graph.connectors._claude_code.parser import discover_sessions
+
+        proj = tmp_path / "project"
+        proj.mkdir()
+        self._write_session_jsonl(proj, "sess-aaa", self._basic_messages())
+        self._write_session_jsonl(proj, "sess-bbb", self._basic_messages())
+
+        sessions = discover_sessions(proj)
+        assert len(sessions) == 2
+
+    def test_discover_sessions_max(self, tmp_path):
+        from create_context_graph.connectors._claude_code.parser import discover_sessions
+
+        proj = tmp_path / "project"
+        proj.mkdir()
+        for i in range(5):
+            self._write_session_jsonl(proj, f"sess-{i:04d}", self._basic_messages())
+
+        sessions = discover_sessions(proj, max_sessions=2)
+        assert len(sessions) == 2
+
+    def test_parse_session_basic(self, tmp_path):
+        from create_context_graph.connectors._claude_code.parser import parse_session
+
+        proj = tmp_path / "project"
+        proj.mkdir()
+        path = self._write_session_jsonl(proj, "sess-001", self._basic_messages())
+
+        result = parse_session(path)
+        assert result["session_id"] == "sess-001"
+        assert len(result["messages"]) == 2
+        assert result["messages"][0]["role"] == "user"
+        assert result["messages"][1]["role"] == "assistant"
+
+    def test_parse_session_tool_calls(self, tmp_path):
+        from create_context_graph.connectors._claude_code.parser import parse_session
+
+        proj = tmp_path / "project"
+        proj.mkdir()
+        path = self._write_session_jsonl(proj, "sess-002", self._messages_with_tool_calls())
+
+        result = parse_session(path)
+        assert len(result["tool_calls"]) == 2
+        assert result["tool_calls"][0]["tool_name"] == "Read"
+        assert result["tool_calls"][1]["tool_name"] == "Edit"
+
+    def test_parse_session_files_tracked(self, tmp_path):
+        from create_context_graph.connectors._claude_code.parser import parse_session
+
+        proj = tmp_path / "project"
+        proj.mkdir()
+        path = self._write_session_jsonl(proj, "sess-003", self._messages_with_tool_calls())
+
+        result = parse_session(path)
+        assert "/tmp/project/config.py" in result["files_touched"]
+        file_info = result["files_touched"]["/tmp/project/config.py"]
+        assert file_info["modification_count"] >= 1
+        assert file_info["read_count"] >= 1
+
+    def test_parse_session_skips_meta(self, tmp_path):
+        from create_context_graph.connectors._claude_code.parser import parse_session
+
+        messages = [
+            {
+                "type": "user",
+                "message": {"role": "user", "content": "system message"},
+                "uuid": "meta-001",
+                "isMeta": True,
+                "timestamp": "2026-04-01T10:00:00.000Z",
+            },
+            *self._basic_messages(),
+        ]
+
+        proj = tmp_path / "project"
+        proj.mkdir()
+        path = self._write_session_jsonl(proj, "sess-004", messages)
+
+        result = parse_session(path)
+        # Meta message should be skipped
+        assert len(result["messages"]) == 2
+
+    def test_parse_session_progress_counted(self, tmp_path):
+        from create_context_graph.connectors._claude_code.parser import parse_session
+
+        proj = tmp_path / "project"
+        proj.mkdir()
+        # Write a session with a progress message manually
+        lines = [
+            json.dumps({
+                "type": "user",
+                "message": {"role": "user", "content": "Hello"},
+                "uuid": "u1", "parentUuid": None,
+                "timestamp": "2026-04-01T10:00:00Z",
+                "sessionId": "s1", "gitBranch": "main", "cwd": "/tmp",
+            }),
+            json.dumps({
+                "type": "progress",
+                "data": {"message": {"type": "user"}},
+                "parentUuid": "u1",
+                "timestamp": "2026-04-01T10:01:00Z",
+                "sessionId": "s1",
+            }),
+        ]
+        path = proj / "sess-005.jsonl"
+        path.write_text("\n".join(lines))
+
+        result = parse_session(path)
+        assert result["progress_count"] == 1
+        assert len(result["messages"]) == 1  # progress not in messages
+
+    def test_malformed_jsonl_lines(self, tmp_path):
+        from create_context_graph.connectors._claude_code.parser import parse_session
+
+        proj = tmp_path / "project"
+        proj.mkdir()
+        lines = [
+            "not valid json",
+            "",
+            json.dumps({
+                "type": "user",
+                "message": {"role": "user", "content": "valid message"},
+                "uuid": "u1", "parentUuid": None,
+                "timestamp": "2026-04-01T10:00:00Z",
+                "sessionId": "s1", "gitBranch": "main", "cwd": "/tmp",
+            }),
+        ]
+        path = proj / "sess-006.jsonl"
+        path.write_text("\n".join(lines))
+
+        result = parse_session(path)
+        assert len(result["messages"]) == 1
+
+    # --- Connector fetch tests ---
+
+    def test_fetch_returns_normalized_data(self, tmp_path):
+        conn = self._make_connector(tmp_path)
+        result = conn.fetch()
+
+        assert isinstance(result, NormalizedData)
+        assert "Project" in result.entities
+        assert "Session" in result.entities
+        assert "Message" in result.entities
+
+    def test_fetch_entity_types(self, tmp_path):
+        conn = self._make_connector(tmp_path, self._messages_with_tool_calls())
+        result = conn.fetch()
+
+        assert "Project" in result.entities
+        assert "Session" in result.entities
+        assert "Message" in result.entities
+        assert "ToolCall" in result.entities
+        assert "File" in result.entities
+
+    def test_fetch_relationships(self, tmp_path):
+        conn = self._make_connector(tmp_path, self._messages_with_tool_calls())
+        result = conn.fetch()
+
+        rel_types = {r["type"] for r in result.relationships}
+        assert "HAS_SESSION" in rel_types
+        assert "HAS_MESSAGE" in rel_types
+        assert "NEXT" in rel_types
+        assert "USED_TOOL" in rel_types
+
+    def test_fetch_file_relationships(self, tmp_path):
+        conn = self._make_connector(tmp_path, self._messages_with_tool_calls())
+        result = conn.fetch()
+
+        rel_types = {r["type"] for r in result.relationships}
+        assert "READ_FILE" in rel_types
+        assert "MODIFIED_FILE" in rel_types
+
+    def test_file_deduplication(self, tmp_path):
+        conn = self._make_connector(tmp_path, self._messages_with_tool_calls())
+        result = conn.fetch()
+
+        # config.py is read then edited — should be one File entity
+        file_names = [f["name"] for f in result.entities.get("File", [])]
+        assert file_names.count("/tmp/project/config.py") == 1
+
+    def test_git_branch_extraction(self, tmp_path):
+        conn = self._make_connector(
+            tmp_path, self._basic_messages(), git_branch="feature/auth"
+        )
+        result = conn.fetch()
+
+        assert "GitBranch" in result.entities
+        branches = [b["name"] for b in result.entities["GitBranch"]]
+        assert "feature/auth" in branches
+
+        rel_types = {r["type"] for r in result.relationships}
+        assert "ON_BRANCH" in rel_types
+
+    def test_content_truncation(self, tmp_path):
+        from create_context_graph.connectors.claude_code_connector import ClaudeCodeConnector
+
+        project_dir = tmp_path / "-tmp-project"
+        project_dir.mkdir()
+        long_msg = [
+            {
+                "type": "user",
+                "message": {"role": "user", "content": "x" * 5000},
+                "uuid": "u-long",
+                "parentUuid": None,
+                "timestamp": "2026-04-01T10:00:00.000Z",
+            },
+        ]
+        self._write_session_jsonl(project_dir, "sess-trunc", long_msg)
+
+        conn = ClaudeCodeConnector()
+        conn.authenticate({
+            "base_path": str(tmp_path),
+            "scope": "all",
+            "content_mode": "truncated",
+            "max_content_len": "100",
+        })
+        result = conn.fetch()
+
+        messages = result.entities.get("Message", [])
+        assert len(messages) == 1
+        assert len(messages[0]["content"]) <= 104  # 100 + "..."
+
+    def test_content_mode_none(self, tmp_path):
+        from create_context_graph.connectors.claude_code_connector import ClaudeCodeConnector
+
+        project_dir = tmp_path / "-tmp-project"
+        project_dir.mkdir()
+        self._write_session_jsonl(project_dir, "sess-none", self._basic_messages())
+
+        conn = ClaudeCodeConnector()
+        conn.authenticate({
+            "base_path": str(tmp_path),
+            "scope": "all",
+            "content_mode": "none",
+        })
+        result = conn.fetch()
+
+        messages = result.entities.get("Message", [])
+        assert all(m["content"] == "" for m in messages)
+
+    def test_content_mode_full(self, tmp_path):
+        from create_context_graph.connectors.claude_code_connector import ClaudeCodeConnector
+
+        project_dir = tmp_path / "-tmp-project"
+        project_dir.mkdir()
+        long_msg = [
+            {
+                "type": "user",
+                "message": {"role": "user", "content": "y" * 5000},
+                "uuid": "u-full",
+                "parentUuid": None,
+                "timestamp": "2026-04-01T10:00:00.000Z",
+            },
+        ]
+        self._write_session_jsonl(project_dir, "sess-full", long_msg)
+
+        conn = ClaudeCodeConnector()
+        conn.authenticate({
+            "base_path": str(tmp_path),
+            "scope": "all",
+            "content_mode": "full",
+        })
+        result = conn.fetch()
+
+        messages = result.entities.get("Message", [])
+        assert len(messages) == 1
+        assert len(messages[0]["content"]) == 5000
+
+    def test_scope_all(self, tmp_path):
+        from create_context_graph.connectors.claude_code_connector import ClaudeCodeConnector
+
+        for name in ["-tmp-project-a", "-tmp-project-b"]:
+            d = tmp_path / name
+            d.mkdir()
+            self._write_session_jsonl(d, f"sess-{name}", self._basic_messages())
+
+        conn = ClaudeCodeConnector()
+        conn.authenticate({"base_path": str(tmp_path), "scope": "all"})
+        result = conn.fetch()
+
+        assert len(result.entities.get("Project", [])) == 2
+
+    def test_project_filter(self, tmp_path):
+        from create_context_graph.connectors.claude_code_connector import ClaudeCodeConnector
+
+        for name in ["-tmp-project-a", "-tmp-project-b"]:
+            d = tmp_path / name
+            d.mkdir()
+            self._write_session_jsonl(d, f"sess-{name}", self._basic_messages())
+
+        conn = ClaudeCodeConnector()
+        conn.authenticate({
+            "base_path": str(tmp_path),
+            "scope": "all",
+            "project_filter": "project-a",
+        })
+        result = conn.fetch()
+
+        assert len(result.entities.get("Project", [])) == 1
+
+    def test_empty_directory(self, tmp_path):
+        from create_context_graph.connectors.claude_code_connector import ClaudeCodeConnector
+
+        conn = ClaudeCodeConnector()
+        conn.authenticate({"base_path": str(tmp_path), "scope": "all"})
+        result = conn.fetch()
+
+        assert result.entities == {} or result.entities == {"File": []}
+        assert result.relationships == []
+
+    def test_documents_generated(self, tmp_path):
+        conn = self._make_connector(tmp_path)
+        result = conn.fetch()
+
+        assert len(result.documents) >= 1
+        assert "Claude Code Session" in result.documents[0]["title"]
+
+    # --- Secret redaction tests ---
+
+    def test_secret_redaction(self, tmp_path):
+        from create_context_graph.connectors._claude_code.redactor import redact_secrets
+
+        text = "My key is sk-ant-abc123456789012345678901"
+        result = redact_secrets(text)
+        assert "sk-ant-" not in result
+        assert "[REDACTED]" in result
+
+    def test_redact_github_token(self):
+        from create_context_graph.connectors._claude_code.redactor import redact_secrets
+
+        text = "token: ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij"
+        result = redact_secrets(text)
+        assert "ghp_" not in result
+
+    def test_redact_password(self):
+        from create_context_graph.connectors._claude_code.redactor import redact_secrets
+
+        text = "password=my_secret_pass123"
+        result = redact_secrets(text)
+        assert "my_secret_pass" not in result
+
+    def test_redact_connection_string(self):
+        from create_context_graph.connectors._claude_code.redactor import redact_secrets
+
+        text = "postgres://user:pass123@localhost/db"
+        result = redact_secrets(text)
+        assert "pass123" not in result
+
+    def test_redact_empty_string(self):
+        from create_context_graph.connectors._claude_code.redactor import redact_secrets
+
+        assert redact_secrets("") == ""
+        assert redact_secrets("no secrets here") == "no secrets here"
+
+    def test_fetch_redacts_content(self, tmp_path):
+        from create_context_graph.connectors.claude_code_connector import ClaudeCodeConnector
+
+        project_dir = tmp_path / "-tmp-project"
+        project_dir.mkdir()
+        secret_msg = [
+            {
+                "type": "user",
+                "message": {"role": "user", "content": "Use key sk-ant-abc12345678901234567890123"},
+                "uuid": "u-secret",
+                "parentUuid": None,
+                "timestamp": "2026-04-01T10:00:00.000Z",
+            },
+        ]
+        self._write_session_jsonl(project_dir, "sess-secret", secret_msg)
+
+        conn = ClaudeCodeConnector()
+        conn.authenticate({"base_path": str(tmp_path), "scope": "all"})
+        result = conn.fetch()
+
+        messages = result.entities.get("Message", [])
+        assert all("sk-ant-" not in m["content"] for m in messages)
+
+    # --- Error extraction tests ---
+
+    def test_error_extraction(self, tmp_path):
+        messages = [
+            {
+                "type": "user",
+                "message": {"role": "user", "content": "Run the tests"},
+                "uuid": "u-0001",
+                "parentUuid": None,
+                "timestamp": "2026-04-01T10:00:00.000Z",
+            },
+            {
+                "type": "assistant",
+                "message": {
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "id": "tool-bash-1",
+                            "name": "Bash",
+                            "input": {"command": "pytest tests/"},
+                        },
+                    ],
+                    "usage": {"input_tokens": 100, "output_tokens": 50},
+                },
+                "uuid": "a-0001",
+                "parentUuid": "u-0001",
+                "timestamp": "2026-04-01T10:01:00.000Z",
+            },
+            {
+                "type": "user",
+                "message": {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": "tool-bash-1",
+                            "content": "FAILED test_foo.py::test_bar - AssertionError",
+                            "is_error": True,
+                        },
+                    ],
+                },
+                "uuid": "u-0002",
+                "parentUuid": "a-0001",
+                "timestamp": "2026-04-01T10:01:05.000Z",
+            },
+        ]
+        conn = self._make_connector(tmp_path, messages)
+        result = conn.fetch()
+
+        assert "Error" in result.entities
+        assert len(result.entities["Error"]) >= 1
+
+        rel_types = {r["type"] for r in result.relationships}
+        assert "ENCOUNTERED_ERROR" in rel_types
+
+    # --- Decision extraction tests ---
+
+    def test_decision_extraction_correction(self, tmp_path):
+        messages = [
+            {
+                "type": "user",
+                "message": {"role": "user", "content": "Help me set up auth"},
+                "uuid": "u-0001",
+                "parentUuid": None,
+                "timestamp": "2026-04-01T10:00:00.000Z",
+            },
+            {
+                "type": "assistant",
+                "message": {
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": "I'll use JWT tokens for authentication."}],
+                    "usage": {"input_tokens": 100, "output_tokens": 50},
+                },
+                "uuid": "a-0001",
+                "parentUuid": "u-0001",
+                "timestamp": "2026-04-01T10:01:00.000Z",
+            },
+            {
+                "type": "user",
+                "message": {"role": "user", "content": "No, instead use OAuth2 with Google"},
+                "uuid": "u-0002",
+                "parentUuid": "a-0001",
+                "timestamp": "2026-04-01T10:02:00.000Z",
+            },
+        ]
+        conn = self._make_connector(tmp_path, messages)
+        result = conn.fetch()
+
+        assert "Decision" in result.entities
+        assert len(result.entities["Decision"]) >= 1
+
+        decisions = result.entities["Decision"]
+        assert any("correction" in d.get("category", "") for d in decisions)
+
+    def test_decision_extraction_error_resolution(self, tmp_path):
+        messages = [
+            {
+                "type": "user",
+                "message": {"role": "user", "content": "Install pydantic"},
+                "uuid": "u-0001",
+                "parentUuid": None,
+                "timestamp": "2026-04-01T10:00:00.000Z",
+            },
+            {
+                "type": "assistant",
+                "message": {
+                    "role": "assistant",
+                    "content": [
+                        {"type": "text", "text": "Running import."},
+                        {
+                            "type": "tool_use",
+                            "id": "tool-bash-fail",
+                            "name": "Bash",
+                            "input": {"command": "python -c 'import pydantic'"},
+                        },
+                    ],
+                    "usage": {"input_tokens": 100, "output_tokens": 50},
+                },
+                "uuid": "a-0001",
+                "parentUuid": "u-0001",
+                "timestamp": "2026-04-01T10:01:00.000Z",
+            },
+            {
+                "type": "user",
+                "message": {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": "tool-bash-fail",
+                            "content": "ModuleNotFoundError: No module named 'pydantic'",
+                            "is_error": True,
+                        },
+                    ],
+                },
+                "uuid": "u-0002",
+                "parentUuid": "a-0001",
+                "timestamp": "2026-04-01T10:01:05.000Z",
+            },
+            {
+                "type": "assistant",
+                "message": {
+                    "role": "assistant",
+                    "content": [
+                        {"type": "text", "text": "Let me install pydantic."},
+                        {
+                            "type": "tool_use",
+                            "id": "tool-bash-fix",
+                            "name": "Bash",
+                            "input": {"command": "pip install pydantic"},
+                        },
+                    ],
+                    "usage": {"input_tokens": 200, "output_tokens": 100},
+                },
+                "uuid": "a-0002",
+                "parentUuid": "u-0002",
+                "timestamp": "2026-04-01T10:02:00.000Z",
+            },
+            {
+                "type": "user",
+                "message": {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": "tool-bash-fix",
+                            "content": "Successfully installed pydantic",
+                        },
+                    ],
+                },
+                "uuid": "u-0003",
+                "parentUuid": "a-0002",
+                "timestamp": "2026-04-01T10:02:05.000Z",
+            },
+        ]
+        conn = self._make_connector(tmp_path, messages)
+        result = conn.fetch()
+
+        assert "Decision" in result.entities
+        categories = [d.get("category") for d in result.entities["Decision"]]
+        # Should detect error-fix and/or dependency decision
+        assert "error-fix" in categories or "dependency" in categories
+
+    # --- Preference extraction tests ---
+
+    def test_preference_extraction_explicit(self, tmp_path):
+        messages = [
+            {
+                "type": "user",
+                "message": {"role": "user", "content": "Always use single quotes in Python"},
+                "uuid": "u-0001",
+                "parentUuid": None,
+                "timestamp": "2026-04-01T10:00:00.000Z",
+            },
+            {
+                "type": "assistant",
+                "message": {
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": "Understood, I'll use single quotes."}],
+                    "usage": {"input_tokens": 100, "output_tokens": 50},
+                },
+                "uuid": "a-0001",
+                "parentUuid": "u-0001",
+                "timestamp": "2026-04-01T10:01:00.000Z",
+            },
+        ]
+        conn = self._make_connector(tmp_path, messages)
+        result = conn.fetch()
+
+        assert "Preference" in result.entities
+        assert len(result.entities["Preference"]) >= 1
+
+    def test_token_usage_tracked(self, tmp_path):
+        conn = self._make_connector(tmp_path)
+        result = conn.fetch()
+
+        sessions = result.entities.get("Session", [])
+        assert len(sessions) == 1
+        assert sessions[0]["totalInputTokens"] > 0
+        assert sessions[0]["totalOutputTokens"] > 0

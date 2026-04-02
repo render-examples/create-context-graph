@@ -156,8 +156,11 @@ Import real data from your existing tools instead of (or in addition to) synthet
 | **Salesforce** | Accounts, contacts, opportunities | Username/password |
 | **Linear** | Issues, projects, cycles, teams, users, labels, comments, milestones, initiatives, attachments + decision traces from history | Personal API key |
 | **Google Workspace** | Drive files, comment threads (as decision traces), revisions, Drive Activity, Calendar events, Gmail metadata | Google OAuth 2.0 |
+| **Claude Code** | Session history, messages, tool calls, files, decisions, preferences, errors | None (local files) |
 
 The **Google Workspace connector** extracts resolved comment threads from Google Docs as first-class decision traces — capturing the question, deliberation, resolution, and participants. Combined with Linear, it provides the full decision lifecycle: from meeting discussion to code execution.
+
+The **Claude Code connector** reads your local session history from `~/.claude/projects/` — no API keys needed. It extracts decision traces from user corrections and error-resolution cycles, identifies developer preferences from explicit statements and behavioral patterns, and automatically redacts secrets before storage.
 
 Connectors run at scaffold time to populate initial data. They're also generated into your project so you can re-import with `make import`:
 
@@ -243,7 +246,7 @@ Options:
   --framework TEXT          Agent framework (pydanticai, claude-agent-sdk, openai-agents, langgraph, crewai, strands, google-adk, anthropic-tools)
   --demo-data               Generate synthetic demo data
   --custom-domain TEXT      Generate custom domain from description (requires --anthropic-api-key)
-  --connector TEXT          SaaS connector to enable; repeatable (github, slack, jira, notion, gmail, gcal, salesforce, linear, google-workspace)
+  --connector TEXT          SaaS connector to enable; repeatable (github, slack, jira, notion, gmail, gcal, salesforce, linear, google-workspace, claude-code)
   --linear-api-key TEXT    Linear API key (required for --connector linear) [env: LINEAR_API_KEY]
   --linear-team TEXT       Linear team key to filter import (e.g., ENG) [env: LINEAR_TEAM]
   --gws-folder-id TEXT     Google Drive folder ID to scope import [env: GWS_FOLDER_ID]
@@ -255,6 +258,11 @@ Options:
   --gws-since TEXT         Import data since date (ISO format, default: 90 days ago)
   --gws-mime-types TEXT    MIME types to include (default: docs,sheets,slides)
   --gws-max-files INT      Maximum files to import (default: 500)
+  --claude-code-scope TEXT Import current project or all (default: current)
+  --claude-code-project TEXT Explicit project path to import sessions for
+  --claude-code-since TEXT Import sessions since date (ISO format)
+  --claude-code-max-sessions INT Max sessions to import, 0=all (default: 0)
+  --claude-code-content TEXT Content mode: truncated, full, none (default: truncated)
   --ingest                  Ingest data into Neo4j after generation
   --neo4j-uri TEXT          Neo4j connection URI [env: NEO4J_URI]
   --neo4j-username TEXT     Neo4j username [env: NEO4J_USERNAME]

@@ -629,3 +629,116 @@ class TestGoogleWorkspaceConnectorCLI:
         connectors_dir = out / "backend" / "app" / "connectors"
         assert (connectors_dir / "google_workspace_connector.py").exists()
         assert (connectors_dir / "linear_connector.py").exists()
+
+
+class TestClaudeCodeConnectorCLI:
+    """Tests for --connector claude-code CLI integration."""
+
+    def test_claude_code_connector_dry_run(self, runner, tmp_path):
+        """--connector claude-code should appear in dry-run output."""
+        out = tmp_path / "cc-dry"
+        result = runner.invoke(main, [
+            "cc-dry",
+            "--domain", "software-engineering",
+            "--framework", "pydanticai",
+            "--connector", "claude-code",
+            "--dry-run",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        assert "claude-code" in result.output
+
+    def test_claude_code_generates_files(self, runner, tmp_path):
+        """--connector claude-code should generate connector files."""
+        out = tmp_path / "cc-gen"
+        result = runner.invoke(main, [
+            "cc-gen",
+            "--domain", "software-engineering",
+            "--framework", "pydanticai",
+            "--connector", "claude-code",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        assert (out / "backend" / "app" / "connectors" / "claude_code_connector.py").exists()
+        assert (out / "backend" / "app" / "connectors" / "__init__.py").exists()
+        assert (out / "backend" / "scripts" / "import_data.py").exists()
+
+    def test_claude_code_import_data_includes_connector(self, runner, tmp_path):
+        """Generated import_data.py should reference ClaudeCodeConnector."""
+        out = tmp_path / "cc-import"
+        result = runner.invoke(main, [
+            "cc-import",
+            "--domain", "software-engineering",
+            "--framework", "pydanticai",
+            "--connector", "claude-code",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        import_data = (out / "backend" / "scripts" / "import_data.py").read_text()
+        assert "ClaudeCodeConnector" in import_data
+
+    def test_claude_code_scope_flag(self, runner, tmp_path):
+        """--claude-code-scope should be accepted."""
+        out = tmp_path / "cc-scope"
+        result = runner.invoke(main, [
+            "cc-scope",
+            "--domain", "software-engineering",
+            "--framework", "pydanticai",
+            "--connector", "claude-code",
+            "--claude-code-scope", "all",
+            "--dry-run",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+
+    def test_claude_code_flags(self, runner, tmp_path):
+        """All --claude-code-* flags should be accepted."""
+        out = tmp_path / "cc-flags"
+        result = runner.invoke(main, [
+            "cc-flags",
+            "--domain", "software-engineering",
+            "--framework", "pydanticai",
+            "--connector", "claude-code",
+            "--claude-code-scope", "all",
+            "--claude-code-project", "/Users/will/projects/foo",
+            "--claude-code-since", "2026-03-01",
+            "--claude-code-max-sessions", "50",
+            "--claude-code-content", "full",
+            "--dry-run",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+
+    def test_claude_code_with_other_connector(self, runner, tmp_path):
+        """Claude Code connector can be combined with other connectors."""
+        out = tmp_path / "cc-multi"
+        result = runner.invoke(main, [
+            "cc-multi",
+            "--domain", "software-engineering",
+            "--framework", "pydanticai",
+            "--connector", "claude-code",
+            "--connector", "linear",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        connectors_dir = out / "backend" / "app" / "connectors"
+        assert (connectors_dir / "claude_code_connector.py").exists()
+        assert (connectors_dir / "linear_connector.py").exists()
+
+    def test_claude_code_agent_tools_injected(self, runner, tmp_path):
+        """Agent should include session intelligence tools when claude-code is active."""
+        out = tmp_path / "cc-tools"
+        result = runner.invoke(main, [
+            "cc-tools",
+            "--domain", "software-engineering",
+            "--framework", "claude-agent-sdk",
+            "--connector", "claude-code",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        agent_py = (out / "backend" / "app" / "agent.py").read_text()
+        # Should contain session-specific tools
+        assert "search_sessions" in agent_py
+        assert "decision_history" in agent_py
+        assert "file_timeline" in agent_py
+        assert "my_preferences" in agent_py
