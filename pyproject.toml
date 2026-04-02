@@ -74,4 +74,5 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [
     "slow: marks tests as slow (run with --slow)",
+    "integration: marks tests requiring Neo4j (run with --integration)",
 ]

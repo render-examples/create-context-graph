@@ -26,6 +26,8 @@ from create_context_graph.ontology import load_domain
 
 def pytest_addoption(parser):
     parser.addoption("--slow", action="store_true", default=False, help="Run slow tests")
+    parser.addoption("--integration", action="store_true", default=False,
+                     help="Run integration tests (requires Neo4j)")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -34,6 +36,12 @@ def pytest_collection_modifyitems(config, items):
         for item in items:
             if "slow" in item.keywords:
                 item.add_marker(skip_slow)
+
+    if not config.getoption("--integration"):
+        skip_int = pytest.mark.skip(reason="Use --integration to run (requires Neo4j)")
+        for item in items:
+            if "integration" in item.keywords:
+                item.add_marker(skip_int)
 
 
 @pytest.fixture
