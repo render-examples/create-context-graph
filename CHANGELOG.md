@@ -1,5 +1,46 @@
 # Changelog
 
+## v0.9.0 — Claude Code Connector, Google Workspace & Security (2026-04-02)
+
+### New Connectors
+- **Claude Code connector** — Reads local session JSONL files from `~/.claude/projects/` with no authentication required. Parses user/assistant messages, tool_use/tool_result blocks, and progress entries. Extracts 7 entity types (Project, Session, Message, ToolCall, File, GitBranch, Error) with 10 relationship types. Includes heuristic **decision extraction** (user corrections, deliberation markers, error-resolution cycles, dependency changes) and **preference extraction** (explicit statements, package frequency). Secret redaction (API keys, tokens, passwords, connection strings) applied by default. 8 session intelligence agent tools injected via the renderer. 5 CLI flags (`--claude-code-scope`, `--claude-code-project`, `--claude-code-since`, `--claude-code-max-sessions`, `--claude-code-content`). Implementation split into `connectors/claude_code_connector.py` and `connectors/_claude_code/` subpackage (parser, redactor, decision_extractor, preference_extractor).
+- **Google Workspace connector** — Imports from 6 Google APIs (Drive Files, Comments, Revisions, Activity, Calendar, Gmail) with OAuth2 authentication and dynamic scope building. Extracts **decision traces** from resolved comment threads in Google Docs (question, deliberation, resolution, participants). 10 decision-focused agent tools (`find_decisions`, `decision_context`, `who_decided`, `document_timeline`, `open_questions`, `meeting_decisions`, `knowledge_contributors`, `trace_decision_to_source`, `stale_documents`, `cross_reference`). Cross-connector linking detects Linear issue references in comment bodies, doc names, email subjects, and meeting descriptions. 9 CLI flags for scoping imports. Rate limiting (950 queries/100s with exponential backoff).
+
+### Security
+- **Replaced weak cryptographic hashing** — Switched from MD5/SHA1 to SHA-256 for content hashing in connectors (code scanning alerts #8 and #9).
+
+### Bug Fixes
+- **Session collision fix** — `Session.name` now uses `session_id` as the unique MERGE key to avoid cross-session collisions when importing Claude Code data.
+- **Linear connector hardening** — Don't fail on blank Linear team key; improved robustness of Linear import with better error handling.
+
+### Improvements
+- Google Workspace connector template improvements and renderer integration
+- Updated import_data.py template to handle new connectors
+- **10 total SaaS connectors** (GitHub, Notion, Jira, Slack, Gmail, Google Calendar, Salesforce, Linear, Google Workspace, Claude Code)
+- 955 passing tests (1,165 collected including slow/integration)
+
+## v0.8.2 — Linear Connector (2026-04-02)
+
+### New Features
+- **Linear SaaS connector** — GraphQL-based connector with cursor-based pagination and rate limiting against `https://api.linear.app/graphql`. Maps 12 entity types (Issue, Project, Cycle, Team, Person, Label, WorkflowState, Comment, ProjectUpdate, ProjectMilestone, Initiative, Attachment) to the POLE+O entity model with 26 relationship types. Imports issue relations, threaded comments with resolution tracking, project updates with health status, milestones, initiatives, attachments, and Linear Docs. Issue history entries are transformed into decision traces capturing state transitions, assignment changes, and priority changes with actor attribution. Uses stdlib only (`urllib.request`).
+- **Linear connector hardening** — Named constants, structured logging, URLError/JSONDecodeError/429 handling with retry, pagination safety limits (`MAX_PAGES`), null-safe field access, team key validation during `authenticate()`, incremental sync via `updated_after`.
+
+### Bug Fixes
+- **Fix traces silent failure** — Decision trace ingestion no longer silently fails on malformed data.
+
+### Documentation
+- New tutorial: `linear-context-graph.md` — end-to-end guide for importing Linear project data
+- Updated CLI options reference and SaaS data import guide
+
+## v0.8.1 — Schema Node Fix & Responsive Docs (2026-03-31)
+
+### Bug Fixes
+- **Click on schema node works again** — The `Button` component was added to the template for the "Ask about [entity]" feature but was never added to the `@chakra-ui/react` import. Clicking a schema node crashed the React component, preventing double-click expand from working.
+- **Python 3.14 boundary** — Added `<3.14` to `requires-python` for forward compatibility.
+
+### Improvements
+- Improved responsive design for Docusaurus landing page
+
 ## v0.8.0 — Embedding Fix, Data Quality & Documentation (2026-03-28)
 
 ### Critical Fixes
@@ -36,6 +77,21 @@
   - Agent tool property references: Cypher queries only reference properties that exist in schema or fixtures
   - Label coverage: fixtures include entities for every YAML-defined label
   - Data quality: numeric property values fall within reasonable ranges
+
+## v0.7.0 — Documentation Site Redesign & CI (2026-03-28)
+
+### New Features
+- **Docusaurus landing page redesign** — New animated terminal hero section with domain-specific demo commands, improved hero animation timing, and terminal width/height fixes.
+- **Mobile navigation** — Responsive nav bar with mobile layout improvements and design polish.
+- **CI matrix job** — Full test suite (including domain × framework matrix, perf, and generated project tests) now runs in the `matrix` CI job on push to `main`.
+
+### Documentation
+- **4 new docs pages** — "Use Neo4j Aura", "Use Docker", "Why Context Graphs?", "Framework Comparison"
+- Updated sidebars with all new pages
+
+### Bug Fixes & Data Quality
+- Bug fixes and data quality improvements across domains
+- Updated docs and test coverage
 
 ## v0.6.1 — Stability, Data Quality & Tool Coverage (2026-03-28)
 
@@ -99,6 +155,13 @@
 
 ### Testing
 - 545 passing tests (35 new), up from 510
+
+## v0.5.3 — Agent Loop Breakout Fix (2026-03-27)
+
+### Bug Fixes
+- **Prevent agents from returning pre-tool text as the final answer** — PydanticAI's `run_stream` fires a `FinalResultEvent` the moment any `TextPart` begins streaming. When Claude emits "I'll search for..." alongside a tool call, `run_stream` treats that text as the final output and exits before tool results are incorporated. Replaced `agent.run_stream()` + `stream_text()` with `agent.run()` in `handle_message_stream`, which completes the full agent loop before emitting text.
+- **Ruff lint fixes** — Resolved lint errors across connectors, tests, and scripts.
+- **Test assertion fix** — Directory conflict test now asserts on "not empty" instead of "already exists" for better cross-platform compatibility.
 
 ## v0.5.2 — Agent Framework Refinements (2026-03-26)
 
