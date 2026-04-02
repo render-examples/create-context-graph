@@ -38,7 +38,7 @@ src/create_context_graph/
 ├── name_pools.py       # Realistic name pools and value generators for static fallback
 ├── ingest.py           # Neo4j ingestion via neo4j-agent-memory or direct driver
 ├── neo4j_validator.py  # Neo4j connection testing
-├── connectors/         # SaaS data connectors (7 services)
+├── connectors/         # SaaS data connectors (10 services)
 │   ├── __init__.py     # BaseConnector ABC, NormalizedData model, registry
 │   ├── github_connector.py
 │   ├── notion_connector.py

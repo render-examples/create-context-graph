@@ -1127,6 +1127,88 @@ Schema introspection of Linear's GraphQL API (494 types) revealed significant ad
 
 ---
 
+## Phase 17 — Claude Code Session History Connector (v0.9.0)
+
+### What was built
+
+#### Claude Code connector (`claude-code`)
+- New connector importing local Claude Code session JSONL files from `~/.claude/projects/` — **no authentication or API keys required**
+- Parses user/assistant messages, `tool_use`/`tool_result` blocks, and `progress` entries from session JSONL files
+- Extracts 7 entity types: Project, Session, Message, ToolCall, File, GitBranch, Error
+- 10 relationship types: HAS_SESSION, HAS_MESSAGE, NEXT, USED_TOOL, MODIFIED_FILE, READ_FILE, PRECEDED_BY, ON_BRANCH, ENCOUNTERED_ERROR, RESOLVED_BY
+- **Heuristic decision extraction** (4 signal types):
+  - User corrections ("no, instead use X") → Decision with rejected/chosen alternatives
+  - Deliberation markers ("should we", "alternatively", "trade-off") → Decision with discussion context
+  - Error-resolution cycles (tool error → corrective tool calls) → Decision with error context
+  - Dependency changes (`pip install`, `npm install`, etc.) → Dependency decisions
+- **Preference extraction** from explicit statements ("always use X", "prefer Y over Z") and package install frequency across sessions
+- **Secret redaction** by default: API keys (`sk-ant-*`, `ghp_*`, `xoxb-*`, `AKIA*`), tokens, passwords, connection strings replaced with `[REDACTED]`
+- Content truncation modes: `truncated` (2000 chars, default), `full`, `none` (metadata only)
+- Token usage tracking from assistant message `usage` fields
+- File deduplication across sessions with modification/read counts
+- Implementation split into main connector + `_claude_code/` subpackage (parser.py, redactor.py, decision_extractor.py, preference_extractor.py)
+
+#### CLI integration
+- 5 new `--claude-code-*` CLI flags: `--claude-code-scope` (current/all), `--claude-code-project`, `--claude-code-since`, `--claude-code-max-sessions`, `--claude-code-content`
+- Credential passing via `config.saas_credentials["claude-code"]` dict
+- Updated `--connector` help text to include `claude-code`
+
+#### Agent tools
+- 8 session intelligence tools injected via renderer when connector is active: `search_sessions`, `decision_history`, `file_timeline`, `error_patterns`, `tool_usage_stats`, `my_preferences`, `project_overview`, `reasoning_trace`
+- System prompt augmented with Claude Code session context description
+- Tools use Cypher queries traversing Session, Message, ToolCall, Decision, Preference, File, Error nodes
+
+#### Generated project integration
+- Scaffold template: `claude_code_connector.py.j2` — simplified standalone parser for re-importing sessions from generated projects
+- `import_data.py.j2` updated with claude-code dispatch case
+- Renderer `connector_templates` mapping updated
+
+#### Documentation (2 new pages, 4 updated)
+- **Tutorial**: "Build a Developer Knowledge Graph from Claude Code Sessions" — step-by-step guide: prerequisites, scaffold, seed, explore, decision extraction, preferences, Cypher queries, combining with other connectors, privacy/security
+- **Reference**: "Claude Code Session Schema" — complete entity types, relationships, decision categories, preference categories, agent tools, redaction patterns, example Cypher
+- Updated: `import-saas-data.md` (how-to), `cli-options.md` (reference), `intro.md`, `sidebars.ts` (navigation)
+
+### Tests added (45 new → 955 passing, 1,165 collected)
+
+#### Unit tests in `test_connectors.py` (+38 Claude Code tests)
+- Registration & metadata (4): connector registered, get_connector, empty credential prompts, listed in connectors
+- Parser / discovery (8): discover projects, empty projects, discover sessions, max sessions, parse basic, parse tool calls, files tracked, skips meta, progress counted, malformed lines
+- Connector fetch (8): returns NormalizedData, entity types, relationships, file relationships, file deduplication, git branch, documents, token usage
+- Content modes (3): truncation, mode none, mode full
+- Scope/filtering (3): scope all, project filter, empty directory
+- Secret redaction (6): redact API keys, GitHub tokens, passwords, connection strings, empty strings, fetch redacts content
+- Error extraction (1): errors from is_error tool_results
+- Decision extraction (2): user correction detected, error-resolution cycle detected
+- Preference extraction (1): explicit statement detected
+
+#### CLI integration tests in `test_cli.py` (+7 tests, `TestClaudeCodeConnectorCLI`)
+- Dry run output, generated files, import data includes connector, scope flag, all flags accepted, combined with other connector, agent tools injected
+
+### Files created
+- `src/create_context_graph/connectors/_claude_code/__init__.py` — package init
+- `src/create_context_graph/connectors/_claude_code/parser.py` — JSONL parsing, project/session discovery (~350 lines)
+- `src/create_context_graph/connectors/_claude_code/redactor.py` — secret detection and redaction (~70 lines)
+- `src/create_context_graph/connectors/_claude_code/decision_extractor.py` — heuristic decision extraction (~350 lines)
+- `src/create_context_graph/connectors/_claude_code/preference_extractor.py` — preference pattern detection (~170 lines)
+- `src/create_context_graph/connectors/claude_code_connector.py` — main connector (~380 lines)
+- `src/create_context_graph/templates/backend/connectors/claude_code_connector.py.j2` — scaffold template
+- `docs/docs/tutorials/claude-code-sessions.md` — tutorial
+- `docs/docs/reference/claude-code-schema.md` — schema reference
+
+### Files modified
+- `src/create_context_graph/connectors/__init__.py` — register ClaudeCodeConnector (10th connector)
+- `src/create_context_graph/cli.py` — 5 new `--claude-code-*` flags, credential passing block
+- `src/create_context_graph/renderer.py` — connector template mapping, 8 Claude Code agent tools (`_CLAUDE_CODE_AGENT_TOOLS`), system prompt augmentation
+- `src/create_context_graph/templates/backend/connectors/import_data.py.j2` — claude-code dispatch
+- `tests/test_connectors.py` — 38 new tests, registry count updated to 10
+- `tests/test_cli.py` — 7 new Claude Code CLI tests
+- `docs/sidebars.ts` — 2 new pages in navigation
+- `docs/docs/intro.md` — updated connector list
+- `docs/docs/how-to/import-saas-data.md` — Claude Code connector section
+- `docs/docs/reference/cli-options.md` — 5 new `--claude-code-*` flags
+- `README.md` — connector table, CLI reference, Claude Code description
+- `CLAUDE.md` — connector count, test counts, connector table, description
+
 ## Summary
 
 | Phase | Description | Status | Tests |
@@ -1151,3 +1233,4 @@ Schema introspection of Linear's GraphQL API (494 types) revealed significant ad
 | 15b | Linear Deep Graph: Relations, History, Decisions | **Complete** | 741 passing |
 | 16 | Linear Connector Hardening & Test Suite Expansion | **Complete** | 874 passing (1,084 collected) |
 | 16b | Google Workspace Connector: Decision Trace Extraction | **Complete** | 874+ passing |
+| 17 | Claude Code Session History Connector | **Complete** | 955 passing (1,165 collected) |
