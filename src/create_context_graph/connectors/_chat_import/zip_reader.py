@@ -29,6 +29,8 @@ logger = logging.getLogger(__name__)
 # Known filenames inside export zip archives
 CLAUDE_AI_FILENAME = "conversations.jsonl"
 CHATGPT_FILENAME = "conversations.json"
+# Maximum number of filenames to display in error messages.
+_MAX_DISPLAYED_FILES = 10
 
 
 def detect_format(path: str | Path) -> str:
@@ -59,7 +61,7 @@ def detect_format(path: str | Path) -> str:
                 return "chatgpt"
             raise ValueError(
                 f"Zip file does not contain {CLAUDE_AI_FILENAME} or "
-                f"{CHATGPT_FILENAME}. Found: {names[:10]}"
+                f"{CHATGPT_FILENAME}. Found: {names[:_MAX_DISPLAYED_FILES]}"
             )
 
     raise ValueError(
@@ -91,7 +93,7 @@ def stream_jsonl(path: str | Path) -> Iterator[dict[str, Any]]:
             except KeyError:
                 raise ValueError(
                     f"Zip archive does not contain '{CLAUDE_AI_FILENAME}'. "
-                    f"Found: {zf.namelist()[:10]}"
+                    f"Found: {zf.namelist()[:_MAX_DISPLAYED_FILES]}"
                 )
             with f_entry as f:
                 reader = io.TextIOWrapper(f, encoding="utf-8")
@@ -124,7 +126,7 @@ def read_json(path: str | Path) -> list[dict[str, Any]]:
             except KeyError:
                 raise ValueError(
                     f"Zip archive does not contain '{CHATGPT_FILENAME}'. "
-                    f"Found: {zf.namelist()[:10]}"
+                    f"Found: {zf.namelist()[:_MAX_DISPLAYED_FILES]}"
                 )
             with f_entry as f:
                 data = json.load(f)

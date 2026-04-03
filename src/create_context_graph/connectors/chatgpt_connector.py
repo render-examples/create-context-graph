@@ -43,6 +43,8 @@ logger = logging.getLogger(__name__)
 MAX_CONTENT_LEN = 2000
 # Maximum characters to store in a conversation document (for search/RAG).
 MAX_DOC_LEN = 10_000
+# Number of characters to use from IDs when building composite entity names.
+_ID_PREFIX_LEN = 12
 
 
 @register_connector("chatgpt")
@@ -151,9 +153,9 @@ class ChatGPTConnector(BaseConnector):
 
             for i, msg in enumerate(conv.messages):
                 if msg.message_id:
-                    msg_name = f"{conv.conversation_id[:12]}-{msg.message_id[:12]}"
+                    msg_name = f"{conv.conversation_id[:_ID_PREFIX_LEN]}-{msg.message_id[:_ID_PREFIX_LEN]}"
                 else:
-                    msg_name = f"{conv.conversation_id[:12]}-msg-{i}"
+                    msg_name = f"{conv.conversation_id[:_ID_PREFIX_LEN]}-msg-{i}"
                 content = msg.content or ""
 
                 truncated = content[:MAX_CONTENT_LEN] if len(content) > MAX_CONTENT_LEN else content
@@ -194,7 +196,7 @@ class ChatGPTConnector(BaseConnector):
             if doc_parts:
                 doc_content = "\n\n".join(doc_parts)
                 documents.append({
-                    "title": f"ChatGPT: {conv.title} [{conv.conversation_id[:8]}]",
+                    "title": f"ChatGPT: {conv.title} [{conv.conversation_id[:_ID_PREFIX_LEN]}]",
                     "content": doc_content[:MAX_DOC_LEN],
                     "template_id": "chat-import",
                     "template_name": "ChatGPT Conversation",
