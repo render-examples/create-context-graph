@@ -308,6 +308,48 @@ def run_wizard() -> ProjectConfig:
     if not neo4j_uri:
         raise SystemExit("Aborted.")
 
+    # Step 5b: Memory enhancement options
+    enhance_memory = questionary.confirm(
+        "Enable memory enhancements? (entity extraction + preference detection from conversations)",
+        default=True,
+    ).ask()
+    if enhance_memory is None:
+        raise SystemExit("Aborted.")
+
+    auto_extract = enhance_memory
+    auto_preferences = enhance_memory
+
+    if enhance_memory:
+        session_strategy = questionary.select(
+            "Session strategy for conversation memory:",
+            choices=[
+                questionary.Choice("Per conversation (default — each session is separate)", value="per_conversation"),
+                questionary.Choice("Per day (sessions reset daily)", value="per_day"),
+                questionary.Choice("Persistent (single continuous session)", value="persistent"),
+            ],
+        ).ask()
+        if not session_strategy:
+            raise SystemExit("Aborted.")
+    else:
+        session_strategy = "per_conversation"
+
+    with_mcp = questionary.confirm(
+        "Generate MCP server config for Claude Desktop integration?",
+        default=False,
+    ).ask()
+    if with_mcp is None:
+        raise SystemExit("Aborted.")
+
+    mcp_profile = "extended"
+    if with_mcp:
+        mcp_profile = questionary.select(
+            "MCP tool profile:",
+            choices=[
+                questionary.Choice("Extended (16 tools — full memory access)", value="extended"),
+                questionary.Choice("Core (6 tools — basic memory)", value="core"),
+            ],
+        ).ask() or "extended"
+
     # Step 6: API Keys (skip Anthropic if already collected for custom domain)
     if custom_domain_yaml is None:
         anthropic_api_key = questionary.password(
@@ -355,6 +397,11 @@ def run_wizard() -> ProjectConfig:
         custom_domain_yaml=custom_domain_yaml,
         saas_connectors=selected_connectors,
         saas_credentials=saas_credentials,
+        with_mcp=with_mcp,
+        mcp_profile=mcp_profile,
+        session_strategy=session_strategy,
+        auto_extract=auto_extract,
+        auto_preferences=auto_preferences,
     )
 
     _show_summary(config)
@@ -379,6 +426,11 @@ def _show_summary(config: ProjectConfig) -> None:
     if config.saas_connectors:
         table.add_row("Connectors", ", ".join(config.saas_connectors))
     table.add_row("Neo4j", f"{config.neo4j_type} ({config.neo4j_uri})")
+    table.add_row("Session Strategy", config.session_strategy)
+    table.add_row("Entity Extraction", "enabled" if config.auto_extract else "disabled")
+    table.add_row("Preference Detection", "enabled" if config.auto_preferences else "disabled")
+    if config.with_mcp:
+        table.add_row("MCP Server", f"enabled (profile: {config.mcp_profile})")
     table.add_row("Anthropic Key", "***" if config.anthropic_api_key else "(not set)")
     table.add_row("OpenAI Key", "***" if config.openai_api_key else "(not set)")
     if config.google_api_key or config.resolved_framework == "google-adk":

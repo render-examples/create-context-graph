@@ -287,7 +287,8 @@ class TestSSEContractValidation:
         # Also pick up the docstring listing the canonical event types.
         docstring_events = set(re.findall(r"- (\w+):", self.routes_src))
         # Filter to known event names only
-        known = {"session_id", "tool_start", "tool_end", "text_delta", "done", "error"}
+        known = {"session_id", "tool_start", "tool_end", "text_delta", "done", "error",
+                 "entities_extracted", "preferences_detected"}
         return (literal_events | docstring_events) & known
 
     def _extract_frontend_event_types(self) -> set[str]:
@@ -333,6 +334,12 @@ class TestSSEContractValidation:
         # error must contain "detail"
         assert "data.detail" in self.chat_src
 
+        # entities_extracted must contain "entities"
+        assert "data.entities" in self.chat_src
+
+        # preferences_detected must contain "preferences"
+        assert "data.preferences" in self.chat_src
+
 
 # ---------------------------------------------------------------------------
 # 4. TestGeneratedFrontendStructure
@@ -343,7 +350,8 @@ class TestGeneratedFrontendStructure:
 
     def test_chat_interface_has_all_event_handlers(self):
         src = CHAT_TEMPLATE.read_text()
-        for event_type in ("session_id", "tool_start", "tool_end", "text_delta", "done", "error"):
+        for event_type in ("session_id", "tool_start", "tool_end", "text_delta",
+                           "entities_extracted", "preferences_detected", "done", "error"):
             assert f'case "{event_type}"' in src, f"ChatInterface missing handler for '{event_type}'"
 
     def test_context_graph_view_has_schema_mode(self):

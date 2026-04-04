@@ -14,7 +14,6 @@ from neo4j.graph import Node, Relationship, Path
 logger = logging.getLogger(__name__)
 
 _driver: AsyncDriver | None = None
-_memory_client = None  # MemoryClient | None — lazy typed to avoid import errors
 _connected: bool = False
 
 
@@ -89,6 +88,16 @@ class CypherResultCollector:
         """Emit a done SSE event."""
         self._push_event("done", {"response": response_text, "session_id": session_id})
 
+    def emit_entities_extracted(self, entities: list[dict]) -> None:
+        """Emit an entities_extracted SSE event."""
+        if entities:
+            self._push_event("entities_extracted", {"entities": entities})
+
+    def emit_preferences_detected(self, preferences: list[dict]) -> None:
+        """Emit a preferences_detected SSE event."""
+        if preferences:
+            self._push_event("preferences_detected", {"preferences": preferences})
+
     # -- existing collection methods -------------------------------------------
 
     def collect(self, records: list[dict]) -> None:
@@ -159,8 +168,8 @@ def is_connected() -> bool:
 
 
 async def connect_neo4j() -> None:
-    """Connect to Neo4j and optionally initialize the memory client."""
-    global _driver, _memory_client, _connected
+    """Connect to Neo4j and initialize the memory integration."""
+    global _driver, _connected
     from app.config import settings
     _driver = AsyncGraphDatabase.driver(
         settings.neo4j_uri,
@@ -169,112 +178,20 @@ async def connect_neo4j() -> None:
     await _driver.verify_connectivity()
     _connected = True
 
-    # Initialize neo4j-agent-memory MemoryClient for conversation persistence
-    try:
-        import os
-        from pydantic import SecretStr
-        from neo4j_agent_memory import MemoryClient, MemorySettings
-
-        # Use OpenAI embeddings if API key is available, otherwise local sentence-transformers
-        if os.getenv("OPENAI_API_KEY"):
-            embedding_config = {
-                "provider": "openai",
-                "model": "text-embedding-3-small",
-                "dimensions": 1536,
-            }
-        else:
-            embedding_config = {
-                "provider": "sentence_transformers",
-                "model": "all-MiniLM-L6-v2",
-                "dimensions": 384,
-                "device": "cpu",
-            }
-            logger.info("Using local sentence-transformers embeddings (set OPENAI_API_KEY for OpenAI embeddings)")
-
-        memory_settings = MemorySettings(
-            neo4j={
-                "uri": settings.neo4j_uri,
-                "username": settings.neo4j_username,
-                "password": SecretStr(settings.neo4j_password),
-            },
-            embedding=embedding_config,
-        )
-        _memory_client = MemoryClient(memory_settings)
-        await _memory_client.__aenter__()
-        logger.info("neo4j-agent-memory MemoryClient initialized")
-    except ImportError:
-        logger.info("neo4j-agent-memory not installed — conversation memory disabled")
-        _memory_client = None
-    except Exception as e:
-        logger.warning("Failed to initialize MemoryClient: %s", e)
-        _memory_client = None
-
-    # Ensure spacy model is available for entity extraction
-    try:
-        import spacy
-        try:
-            spacy.load("en_core_web_sm")
-        except OSError:
-            logger.info("Downloading spacy model en_core_web_sm...")
-            spacy.cli.download("en_core_web_sm")
-    except ImportError:
-        pass
+    # Initialize MemoryIntegration for conversation memory + entity extraction
+    from app.memory import connect_memory
+    await connect_memory()
 
 
 async def close_neo4j() -> None:
-    """Close Neo4j connection and memory client."""
-    global _driver, _memory_client, _connected
+    """Close Neo4j connection and memory integration."""
+    global _driver, _connected
     _connected = False
-    if _memory_client:
-        try:
-            await _memory_client.__aexit__(None, None, None)
-        except Exception:
-            pass
-        _memory_client = None
+    from app.memory import close_memory
+    await close_memory()
     if _driver:
         await _driver.close()
         _driver = None
-
-
-# ---------------------------------------------------------------------------
-# Conversation memory — powered by neo4j-agent-memory short-term store
-# ---------------------------------------------------------------------------
-
-
-async def get_conversation_history(session_id: str, limit: int = 20) -> list[dict]:
-    """Retrieve conversation history for a session.
-
-    Returns a list of {"role": str, "content": str} dicts.
-    Falls back to an empty list if memory client is unavailable.
-    """
-    if _memory_client is None:
-        return []
-    try:
-        conversation = await _memory_client.short_term.get_conversation(
-            session_id=session_id,
-            limit=limit,
-        )
-        return [{"role": m.role, "content": m.content} for m in conversation.messages]
-    except Exception as e:
-        logger.warning("Failed to retrieve conversation history: %s", e)
-        return []
-
-
-async def store_message(session_id: str, role: str, content: str) -> None:
-    """Store a message in conversation history.
-
-    Silently no-ops if memory client is unavailable.
-    """
-    if _memory_client is None:
-        return
-    try:
-        await _memory_client.short_term.add_message(
-            session_id=session_id,
-            role=role,
-            content=content,
-        )
-    except Exception as e:
-        logger.warning("Failed to store message: %s", e)
 
 
 def get_driver() -> AsyncDriver:

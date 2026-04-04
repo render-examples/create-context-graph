@@ -18,6 +18,7 @@ import json
 
 import pytest
 
+from create_context_graph.config import ProjectConfig
 from create_context_graph.ontology import load_domain
 from create_context_graph.renderer import (
     ProjectRenderer,
@@ -286,16 +287,17 @@ class TestProjectRenderer:
         assert "remark-gfm" in pkg["dependencies"]
 
     def test_context_graph_client_has_memory_functions(self, financial_config, tmp_output):
-        """Verify context_graph_client.py has memory integration functions."""
+        """Verify context_graph_client.py delegates to memory module."""
         ontology = load_domain(financial_config.domain)
         renderer = ProjectRenderer(financial_config, ontology)
         renderer.render(tmp_output)
 
         client = (tmp_output / "backend" / "app" / "context_graph_client.py").read_text()
-        assert "get_conversation_history" in client
-        assert "store_message" in client
-        assert "MemoryClient" in client
+        assert "from app.memory import connect_memory" in client
+        assert "MemoryClient" not in client
         assert "drain_tool_calls" in client
+        assert "emit_entities_extracted" in client
+        assert "emit_preferences_detected" in client
 
     def test_gds_client_no_hardcoded_entity(self, financial_config, tmp_output):
         """Verify GDS client doesn't use hardcoded 'Entity' label."""
@@ -308,14 +310,16 @@ class TestProjectRenderer:
         assert "ENTITY_LABELS" in gds
 
     def test_agent_imports_memory_functions(self, financial_config, tmp_output):
-        """Verify generated agent imports conversation memory functions."""
+        """Verify generated agent imports from memory module."""
         ontology = load_domain(financial_config.domain)
         renderer = ProjectRenderer(financial_config, ontology)
         renderer.render(tmp_output)
 
         agent = (tmp_output / "backend" / "app" / "agent.py").read_text()
-        assert "get_conversation_history" in agent
+        assert "from app.memory import" in agent
         assert "store_message" in agent
+        assert "get_context" in agent
+        assert "resolve_session_id" in agent
 
     def test_routes_has_tool_calls_in_response(self, financial_config, tmp_output):
         """Verify routes.py includes tool_calls in ChatResponse."""
@@ -422,6 +426,103 @@ class TestProjectRenderer:
 
         css = (tmp_output / "frontend" / "app" / "globals.css").read_text()
         assert ".markdown-content" in css
+
+    def test_memory_py_generated(self, financial_config, tmp_output):
+        """Verify memory.py module is generated with MemoryIntegration."""
+        ontology = load_domain(financial_config.domain)
+        renderer = ProjectRenderer(financial_config, ontology)
+        renderer.render(tmp_output)
+
+        memory = (tmp_output / "backend" / "app" / "memory.py").read_text()
+        assert "MemoryIntegration" in memory
+        assert "connect_memory" in memory
+        assert "close_memory" in memory
+        assert "store_message" in memory
+        assert "get_context" in memory
+        assert "resolve_session_id" in memory
+
+    def test_mcp_files_generated_when_enabled(self, tmp_output):
+        """Verify MCP files are generated when with_mcp=True."""
+        config = ProjectConfig(
+            project_name="Test MCP App",
+            domain="financial-services",
+            framework="pydanticai",
+            with_mcp=True,
+            mcp_profile="extended",
+        )
+        ontology = load_domain(config.domain)
+        renderer = ProjectRenderer(config, ontology)
+        renderer.render(tmp_output)
+
+        mcp_config = tmp_output / "mcp" / "claude_desktop_config.json"
+        mcp_readme = tmp_output / "mcp" / "README.md"
+        assert mcp_config.exists()
+        assert mcp_readme.exists()
+        content = mcp_config.read_text()
+        assert "test-mcp-app-memory" in content
+        assert "extended" in content
+
+    def test_mcp_files_not_generated_by_default(self, financial_config, tmp_output):
+        """Verify MCP files are NOT generated when with_mcp=False."""
+        ontology = load_domain(financial_config.domain)
+        renderer = ProjectRenderer(financial_config, ontology)
+        renderer.render(tmp_output)
+
+        assert not (tmp_output / "mcp").exists()
+
+    def test_pyproject_bumps_memory_version(self, financial_config, tmp_output):
+        """Verify generated pyproject.toml requires neo4j-agent-memory>=0.1.0."""
+        ontology = load_domain(financial_config.domain)
+        renderer = ProjectRenderer(financial_config, ontology)
+        renderer.render(tmp_output)
+
+        pkg = (tmp_output / "backend" / "pyproject.toml").read_text()
+        assert "neo4j-agent-memory" in pkg
+        assert ">=0.1.0" in pkg
+        assert ">=0.0.5" not in pkg
+
+    def test_makefile_has_mcp_target_when_enabled(self, tmp_output):
+        """Verify Makefile includes mcp-server target when with_mcp=True."""
+        config = ProjectConfig(
+            project_name="Test MCP App",
+            domain="healthcare",
+            framework="pydanticai",
+            with_mcp=True,
+        )
+        ontology = load_domain(config.domain)
+        renderer = ProjectRenderer(config, ontology)
+        renderer.render(tmp_output)
+
+        makefile = (tmp_output / "Makefile").read_text()
+        assert "mcp-server" in makefile
+        assert "neo4j_agent_memory.mcp.server" in makefile
+
+    def test_makefile_no_mcp_target_by_default(self, financial_config, tmp_output):
+        """Verify Makefile does NOT include mcp-server when with_mcp=False."""
+        ontology = load_domain(financial_config.domain)
+        renderer = ProjectRenderer(financial_config, ontology)
+        renderer.render(tmp_output)
+
+        makefile = (tmp_output / "Makefile").read_text()
+        assert "mcp-server" not in makefile
+
+    def test_env_example_has_session_strategy(self, financial_config, tmp_output):
+        """Verify .env.example includes SESSION_STRATEGY."""
+        ontology = load_domain(financial_config.domain)
+        renderer = ProjectRenderer(financial_config, ontology)
+        renderer.render(tmp_output)
+
+        env = (tmp_output / ".env.example").read_text()
+        assert "SESSION_STRATEGY" in env
+
+    def test_config_py_has_session_strategy(self, financial_config, tmp_output):
+        """Verify generated config.py includes session_strategy setting."""
+        ontology = load_domain(financial_config.domain)
+        renderer = ProjectRenderer(financial_config, ontology)
+        renderer.render(tmp_output)
+
+        config_py = (tmp_output / "backend" / "app" / "config.py").read_text()
+        assert "session_strategy" in config_py
 
 
 class TestAllFrameworksRender:

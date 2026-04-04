@@ -106,3 +106,13 @@ In the generated application (v0.3.0+), the three memory types work together dur
 The `context_graph_client.py` in every generated project initializes the `MemoryClient` at startup (with a graceful fallback if `neo4j-agent-memory` is not installed). All 8 supported agent frameworks call `get_conversation_history()` and `store_message()` — the memory integration is centralized in the shared client, not duplicated across framework templates.
 
 This architecture means every interaction enriches the system: the knowledge graph grows, the conversation history accumulates, and the reasoning traces provide an ever-expanding audit trail.
+
+## MemoryIntegration (v0.1.0)
+
+Starting with create-context-graph v0.9.0, generated projects use `MemoryIntegration` from neo4j-agent-memory v0.1.0 — the convenience layer that wraps all three memory types into a single interface:
+
+- **`store_message()`** stores a message and automatically extracts entities and preferences
+- **`get_context()`** returns messages, entities, preferences, and reasoning traces in one call
+- **`resolve_session_id()`** manages session identity based on a configurable strategy (per conversation, per day, or persistent)
+
+This replaces the previous lower-level `MemoryClient` API and adds automatic entity extraction from conversations, preference detection, and configurable session strategies.

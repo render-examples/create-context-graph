@@ -90,3 +90,19 @@ def financial_ontology():
 def healthcare_ontology():
     """Load the healthcare ontology."""
     return load_domain("healthcare")
+
+
+@pytest.fixture
+def mcp_config() -> ProjectConfig:
+    """A config with MCP server enabled."""
+    return ProjectConfig(
+        project_name="Test MCP App",
+        domain="financial-services",
+        framework="pydanticai",
+        neo4j_uri="neo4j://localhost:7687",
+        neo4j_username="neo4j",
+        neo4j_password="password",
+        neo4j_type="docker",
+        with_mcp=True,
+        mcp_profile="extended",
+    )

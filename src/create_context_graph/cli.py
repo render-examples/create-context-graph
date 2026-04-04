@@ -77,6 +77,11 @@ console = Console()
 @click.option("--import-filter-before", type=str, help="Only import conversations before this date (ISO 8601)")
 @click.option("--import-filter-title", type=str, help="Only import conversations matching this title pattern (regex)")
 @click.option("--import-max-conversations", type=int, default=0, help="Maximum conversations to import (0=all)")
+@click.option("--with-mcp", is_flag=True, default=False, help="Generate MCP server configuration for Claude Desktop")
+@click.option("--mcp-profile", type=click.Choice(["core", "extended"], case_sensitive=False), default="extended", help="MCP tool profile (core=6 tools, extended=16 tools)")
+@click.option("--session-strategy", type=click.Choice(["per_conversation", "per_day", "persistent"], case_sensitive=False), default="per_conversation", help="Memory session strategy")
+@click.option("--auto-extract/--no-auto-extract", default=True, help="Auto-extract entities from conversation messages")
+@click.option("--auto-preferences/--no-auto-preferences", default=True, help="Auto-detect user preferences from conversation messages")
 @click.option("--output-dir", type=click.Path(), help="Output directory (default: ./<project-name>)")
 @click.option("--demo", is_flag=True, help="Shortcut for --reset-database --demo-data --ingest")
 @click.option("--dry-run", is_flag=True, help="Preview what would be generated without creating files")
@@ -123,6 +128,11 @@ def main(
     import_filter_before: str | None,
     import_filter_title: str | None,
     import_max_conversations: int,
+    with_mcp: bool,
+    mcp_profile: str,
+    session_strategy: str,
+    auto_extract: bool,
+    auto_preferences: bool,
     output_dir: str | None,
     demo: bool,
     dry_run: bool,
@@ -250,6 +260,11 @@ def main(
             generate_data=demo_data,
             custom_domain_yaml=custom_domain_yaml,
             saas_connectors=list(connector),
+            with_mcp=with_mcp,
+            mcp_profile=mcp_profile,
+            session_strategy=session_strategy,
+            auto_extract=auto_extract,
+            auto_preferences=auto_preferences,
         )
         # Populate SaaS credentials from CLI flags
         if "linear" in connector:
@@ -328,6 +343,9 @@ def main(
         console.print(f"  Data:       {config.data_source}")
         if config.saas_connectors:
             console.print(f"  Connectors: {', '.join(config.saas_connectors)}")
+        console.print(f"  Memory:     strategy={config.session_strategy}, extract={config.auto_extract}, preferences={config.auto_preferences}")
+        if config.with_mcp:
+            console.print(f"  MCP:        profile={config.mcp_profile}")
         console.print(f"  Output:     {out}")
         console.print()
         return
@@ -452,6 +470,8 @@ def main(
         console.print("  [bold]make seed[/bold]          # Seed sample data")
     if config.saas_connectors:
         console.print("  [bold]make import[/bold]         # Re-import from connected services")
+    if config.with_mcp:
+        console.print("  [bold]make mcp-server[/bold]    # Start MCP server for Claude Desktop")
     console.print("  [bold]make start[/bold]         # Start backend + frontend")
     console.print()
     console.print("  Backend:  http://localhost:8000")

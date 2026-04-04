@@ -1318,6 +1318,108 @@ Schema introspection of Linear's GraphQL API (494 types) revealed significant ad
 - **Additional platforms**: Google Gemini, Perplexity AI, GitHub Copilot Chat export import
 - **Import visualization**: real-time graph building during import, before/after comparison, entity timeline view
 
+## Phase 19 — neo4j-agent-memory v0.1.0 Alignment: MemoryIntegration, MCP Server & Entity Extraction (v0.9.0)
+
+### MemoryIntegration migration
+- Replaced `MemoryClient` with `MemoryIntegration` from neo4j-agent-memory v0.1.0
+- New shared `memory.py.j2` template generates `backend/app/memory.py` with `connect_memory()`, `close_memory()`, `store_message()`, `get_context()`, `resolve_session_id()`
+- `context_graph_client.py.j2` stripped of inline MemoryClient init (~60 lines removed), delegates to `app.memory`
+- All 8 agent templates migrated from `get_conversation_history()`/`store_message()` to `get_context()`/`store_message()`/`resolve_session_id()` from `app.memory`
+- `get_context()` returns rich context: messages + entities + preferences + traces (vs old simple message list)
+- `store_message()` returns extraction results (entities, preferences) used for SSE events
+- Graceful degradation preserved: `ImportError` catch if neo4j-agent-memory not installed
+- `pyproject.toml.j2` bumped to `neo4j-agent-memory[spacy,gliner]>=0.1.0`
+
+### MCP server generation
+- New `--with-mcp` CLI flag and wizard step generates MCP server configuration for Claude Desktop
+- `mcp/claude_desktop_config.json.j2` — pre-configured with project Neo4j credentials and slug
+- `mcp/README.md.j2` — setup instructions with tool lists for core (6) and extended (16) profiles
+- `make mcp-server` Makefile target (conditional on `--with-mcp`)
+- `--mcp-profile core|extended` selects tool surface (default: extended with 16 tools)
+- README.md.j2 conditionally includes MCP section
+
+### Entity extraction & preference detection
+- `store_message()` triggers automatic entity extraction and preference detection via MemoryIntegration
+- Two new SSE event types: `entities_extracted`, `preferences_detected`
+- `CypherResultCollector` gains `emit_entities_extracted()` and `emit_preferences_detected()` methods
+- Frontend `ChatInterface.tsx.j2` handles new events with teal entity badges and orange preference badges
+- `routes.py.j2` emits extraction events in non-streaming fallback path
+
+### Session strategies
+- `--session-strategy per_conversation|per_day|persistent` CLI flag
+- `SESSION_STRATEGY` env var in generated `.env.example` and `config.py`
+- `resolve_session_id()` delegates to MemoryIntegration's strategy-based resolution
+
+### CLI & wizard updates
+- 5 new CLI flags: `--with-mcp`, `--mcp-profile`, `--session-strategy`, `--auto-extract/--no-auto-extract`, `--auto-preferences/--no-auto-preferences`
+- New wizard step 5b between Neo4j connection and API Keys: memory enhancement options (extraction, preferences, session strategy, MCP)
+- Dry-run output shows memory configuration and MCP profile
+- Success message shows `make mcp-server` when MCP enabled
+
+### Tests added (20 new → 1,053 passing, 1,259 collected)
+
+#### `tests/test_config.py` (+4 tests)
+- `test_memory_defaults` — default values for all 5 new fields
+- `test_mcp_config` — MCP fields set correctly
+- `test_session_strategy_values` — all 3 strategy values accepted
+- `test_auto_extract_disabled` — extraction/preferences can be disabled
+
+#### `tests/test_renderer.py` (+8 tests)
+- `test_memory_py_generated` — memory.py exists with MemoryIntegration
+- `test_mcp_files_generated_when_enabled` — MCP files generated when with_mcp=True
+- `test_mcp_files_not_generated_by_default` — no MCP files by default
+- `test_pyproject_bumps_memory_version` — >=0.1.0 in pyproject.toml
+- `test_makefile_has_mcp_target_when_enabled` — mcp-server target present
+- `test_makefile_no_mcp_target_by_default` — no mcp-server by default
+- `test_env_example_has_session_strategy` — SESSION_STRATEGY in .env.example
+- `test_config_py_has_session_strategy` — session_strategy in generated config.py
+
+#### `tests/test_cli.py` (+6 tests)
+- `test_with_mcp_flag` — MCP files generated via CLI flag
+- `test_session_strategy_flag` — strategy flows to generated config
+- `test_no_auto_extract_flag` — extraction disabled in memory.py
+- `test_mcp_profile_core_flag` — core profile in MCP config
+- `test_dry_run_shows_memory_config` — memory info in dry-run output
+
+#### `tests/test_frontend_logic.py` (+2 tests via updated assertions)
+- Updated SSE contract validation to include entities_extracted and preferences_detected
+- Updated event handler check to verify all 8 event types
+
+#### `tests/test_generated_project.py` (+3 tests updated)
+- `test_context_graph_client_delegates_to_memory` — verifies app.memory import
+- `test_memory_module_exists` — verifies MemoryIntegration in memory.py
+- `test_agent_uses_memory_module` — verifies agent imports from app.memory
+
+### Files created
+- `src/create_context_graph/templates/backend/shared/memory.py.j2`
+- `src/create_context_graph/templates/base/mcp/claude_desktop_config.json.j2`
+- `src/create_context_graph/templates/base/mcp/README.md.j2`
+
+### Files modified
+- `src/create_context_graph/config.py` — 5 new ProjectConfig fields + constants
+- `src/create_context_graph/cli.py` — 5 new Click options, dry-run output, success message
+- `src/create_context_graph/wizard.py` — new step 5b, summary table additions
+- `src/create_context_graph/renderer.py` — context vars, conditional MCP, memory.py in shared
+- `src/create_context_graph/templates/backend/shared/context_graph_client.py.j2` — stripped MemoryClient, added emitters
+- `src/create_context_graph/templates/backend/shared/config.py.j2` — session_strategy setting
+- `src/create_context_graph/templates/backend/shared/pyproject.toml.j2` — bumped >=0.1.0
+- `src/create_context_graph/templates/backend/shared/routes.py.j2` — extraction events
+- `src/create_context_graph/templates/backend/agents/pydanticai/agent.py.j2`
+- `src/create_context_graph/templates/backend/agents/claude_agent_sdk/agent.py.j2`
+- `src/create_context_graph/templates/backend/agents/openai_agents/agent.py.j2`
+- `src/create_context_graph/templates/backend/agents/langgraph/agent.py.j2`
+- `src/create_context_graph/templates/backend/agents/crewai/agent.py.j2`
+- `src/create_context_graph/templates/backend/agents/strands/agent.py.j2`
+- `src/create_context_graph/templates/backend/agents/google_adk/agent.py.j2`
+- `src/create_context_graph/templates/backend/agents/anthropic_tools/agent.py.j2`
+- `src/create_context_graph/templates/base/Makefile.j2` — mcp-server target
+- `src/create_context_graph/templates/base/README.md.j2` — MCP section, SESSION_STRATEGY
+- `src/create_context_graph/templates/base/dot_env_example.j2` — SESSION_STRATEGY
+- `src/create_context_graph/templates/frontend/components/ChatInterface.tsx.j2` — new SSE events, badges
+- `tests/conftest.py` — mcp_config fixture
+- `tests/test_config.py`, `tests/test_renderer.py`, `tests/test_cli.py`
+- `tests/test_frontend_logic.py`, `tests/test_generated_project.py`
+
 ## Summary
 
 | Phase | Description | Status | Tests |
@@ -1344,3 +1446,4 @@ Schema introspection of Linear's GraphQL API (494 types) revealed significant ad
 | 16b | Google Workspace Connector: Decision Trace Extraction | **Complete** | 874+ passing |
 | 17 | Claude Code Session History Connector | **Complete** | 955 passing (1,165 collected) |
 | 18 | Chat History Import: Claude AI & ChatGPT | **Complete** | 1,033 passing (1,243 collected) |
+| 19 | neo4j-agent-memory v0.1.0: MemoryIntegration, MCP, Entity Extraction | **Complete** | 1,053 passing (1,259 collected) |

@@ -362,18 +362,27 @@ class TestGeneratedChatInterface:
 class TestGeneratedMemoryIntegration:
     """Backend must integrate neo4j-agent-memory for conversation persistence."""
 
-    def test_context_graph_client_has_memory(self, generated_project):
+    def test_context_graph_client_delegates_to_memory(self, generated_project):
         out, _ = generated_project
         client = (out / "backend" / "app" / "context_graph_client.py").read_text()
-        assert "MemoryClient" in client
-        assert "get_conversation_history" in client
-        assert "store_message" in client
+        assert "from app.memory import connect_memory" in client
+        assert "MemoryClient" not in client
+        assert "emit_entities_extracted" in client
 
-    def test_agent_uses_conversation_history(self, generated_project):
+    def test_memory_module_exists(self, generated_project):
+        out, _ = generated_project
+        memory = (out / "backend" / "app" / "memory.py").read_text()
+        assert "MemoryIntegration" in memory
+        assert "store_message" in memory
+        assert "get_context" in memory
+
+    def test_agent_uses_memory_module(self, generated_project):
         out, _ = generated_project
         agent = (out / "backend" / "app" / "agent.py").read_text()
-        assert "get_conversation_history" in agent
+        assert "from app.memory import" in agent
         assert "store_message" in agent
+        assert "get_context" in agent
+        assert "resolve_session_id" in agent
 
     def test_routes_returns_tool_calls(self, generated_project):
         out, _ = generated_project
@@ -1102,11 +1111,11 @@ class TestNeo4jAgentMemoryDeps:
         # Should NOT have openai extra — local embeddings by default
         assert "openai" not in pyproject.split("neo4j-agent-memory")[1].split('"')[0]
 
-    def test_context_graph_client_has_embedding_config(self, generated_project):
+    def test_memory_module_has_integration(self, generated_project):
         out, _ = generated_project
-        client = (out / "backend" / "app" / "context_graph_client.py").read_text()
-        assert "sentence_transformers" in client
-        assert "OPENAI_API_KEY" in client
+        memory = (out / "backend" / "app" / "memory.py").read_text()
+        assert "MemoryIntegration" in memory
+        assert "SessionStrategy" in memory
 
 
 class TestStreamingEndpointTimeout:

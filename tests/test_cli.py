@@ -742,3 +742,76 @@ class TestClaudeCodeConnectorCLI:
         assert "decision_history" in agent_py
         assert "file_timeline" in agent_py
         assert "my_preferences" in agent_py
+
+    def test_with_mcp_flag(self, runner, tmp_path):
+        """Verify --with-mcp generates MCP config files."""
+        out = tmp_path / "my-app"
+        result = runner.invoke(main, [
+            "my-app",
+            "--domain", "financial-services",
+            "--framework", "pydanticai",
+            "--with-mcp",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        assert (out / "mcp" / "claude_desktop_config.json").exists()
+        assert (out / "mcp" / "README.md").exists()
+        makefile = (out / "Makefile").read_text()
+        assert "mcp-server" in makefile
+
+    def test_session_strategy_flag(self, runner, tmp_path):
+        """Verify --session-strategy flows through to generated config."""
+        out = tmp_path / "my-app"
+        result = runner.invoke(main, [
+            "my-app",
+            "--domain", "healthcare",
+            "--framework", "pydanticai",
+            "--session-strategy", "persistent",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        config = (out / "backend" / "app" / "config.py").read_text()
+        assert "persistent" in config
+
+    def test_no_auto_extract_flag(self, runner, tmp_path):
+        """Verify --no-auto-extract disables entity extraction."""
+        out = tmp_path / "my-app"
+        result = runner.invoke(main, [
+            "my-app",
+            "--domain", "healthcare",
+            "--framework", "pydanticai",
+            "--no-auto-extract",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        memory = (out / "backend" / "app" / "memory.py").read_text()
+        assert "auto_extract=false" in memory.lower() or "auto_extract=False" in memory
+
+    def test_mcp_profile_core_flag(self, runner, tmp_path):
+        """Verify --mcp-profile core sets core profile."""
+        out = tmp_path / "my-app"
+        result = runner.invoke(main, [
+            "my-app",
+            "--domain", "financial-services",
+            "--framework", "pydanticai",
+            "--with-mcp",
+            "--mcp-profile", "core",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        mcp_config = (out / "mcp" / "claude_desktop_config.json").read_text()
+        assert "core" in mcp_config
+
+    def test_dry_run_shows_memory_config(self, runner, tmp_path):
+        """Verify --dry-run shows memory configuration."""
+        result = runner.invoke(main, [
+            "my-app",
+            "--domain", "healthcare",
+            "--framework", "pydanticai",
+            "--session-strategy", "per_day",
+            "--with-mcp",
+            "--dry-run",
+        ])
+        assert result.exit_code == 0, result.output
+        assert "per_day" in result.output
+        assert "MCP" in result.output

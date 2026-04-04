@@ -47,6 +47,11 @@ create-context-graph [PROJECT_NAME] [OPTIONS]
 | `--claude-code-since` | `string` | -- | all time | ISO date; only import sessions modified after this date. |
 | `--claude-code-max-sessions` | `int` | -- | `0` (all) | Maximum number of sessions to import (most recent first). `0` means no limit. |
 | `--claude-code-content` | `choice` | -- | `truncated` | Content storage mode: `full` (complete text), `truncated` (first 2000 chars), `none` (metadata only). |
+| `--with-mcp` | `flag` | -- | `false` | Generate MCP server configuration for Claude Desktop. Creates `mcp/claude_desktop_config.json`, `mcp/README.md`, and adds a `make mcp-server` target to the Makefile. |
+| `--mcp-profile` | `choice` | -- | `extended` | MCP tool profile: `core` (6 tools — basic memory operations) or `extended` (16 tools — full memory access including graph queries and reasoning traces). |
+| `--session-strategy` | `choice` | -- | `per_conversation` | Memory session strategy: `per_conversation` (new session ID per conversation), `per_day` (sessions reset daily), `persistent` (single continuous session per user). |
+| `--auto-extract` / `--no-auto-extract` | `flag` | -- | on | Automatically extract entities from conversation messages via neo4j-agent-memory's entity extraction pipeline. |
+| `--auto-preferences` / `--no-auto-preferences` | `flag` | -- | on | Automatically detect user preferences from conversation messages. Detected preferences are stored in the knowledge graph. |
 | `--ingest` | `flag` | -- | `false` | Ingest generated data into Neo4j after scaffolding. Requires a running Neo4j instance. |
 | `--neo4j-uri` | `string` | `NEO4J_URI` | `neo4j://localhost:7687` | Neo4j Bolt connection URI. |
 | `--neo4j-username` | `string` | `NEO4J_USERNAME` | `neo4j` | Neo4j authentication username. |
@@ -161,6 +166,21 @@ create-context-graph my-project \
   --linear-api-key lin_api_xxxxx \
   --linear-team ENG
 ```
+
+### With MCP server for Claude Desktop
+
+Generate a project with MCP server support:
+
+```bash
+create-context-graph my-app \
+  --domain healthcare \
+  --framework pydanticai \
+  --demo-data \
+  --with-mcp \
+  --mcp-profile extended
+```
+
+After scaffolding, copy `mcp/claude_desktop_config.json` to your Claude Desktop config directory and restart Claude Desktop to connect.
 
 ### Scaffold and ingest into Neo4j
 

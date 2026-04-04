@@ -19,12 +19,26 @@ interface ToolCall {
   graph_data?: GraphData;
 }
 
+interface ExtractedEntity {
+  name: string;
+  type: string;
+  subtype?: string;
+}
+
+interface DetectedPreference {
+  category: string;
+  preference: string;
+  confidence?: number;
+}
+
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   toolCalls?: ToolCall[];
   retryInput?: string;
+  entities?: ExtractedEntity[];
+  preferences?: DetectedPreference[];
 }
 
 interface ChatInterfaceProps {
@@ -126,6 +140,8 @@ export function ChatInterface({ onGraphUpdate, externalInput, onExternalInputCon
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [streamingContent, setStreamingContent] = useState("");
   const [streamingToolCalls, setStreamingToolCalls] = useState<ToolCall[]>([]);
+  const [streamingEntities, setStreamingEntities] = useState<ExtractedEntity[]>([]);
+  const [streamingPreferences, setStreamingPreferences] = useState<DetectedPreference[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -191,6 +207,8 @@ export function ChatInterface({ onGraphUpdate, externalInput, onExternalInputCon
     setSessionId(null);
     setStreamingContent("");
     setStreamingToolCalls([]);
+    setStreamingEntities([]);
+    setStreamingPreferences([]);
     setLoading(false);
     try {
       sessionStorage.removeItem(STORAGE_KEY);
@@ -208,6 +226,8 @@ export function ChatInterface({ onGraphUpdate, externalInput, onExternalInputCon
     setLoading(true);
     setStreamingContent("");
     setStreamingToolCalls([]);
+    setStreamingEntities([]);
+    setStreamingPreferences([]);
     textBufferRef.current = "";
 
     const controller = new AbortController();
@@ -307,6 +327,18 @@ export function ChatInterface({ onGraphUpdate, externalInput, onExternalInputCon
                   appendStreamingText(data.text);
                   break;
 
+                case "entities_extracted":
+                  if (data.entities?.length) {
+                    setStreamingEntities((prev) => [...prev, ...data.entities]);
+                  }
+                  break;
+
+                case "preferences_detected":
+                  if (data.preferences?.length) {
+                    setStreamingPreferences((prev) => [...prev, ...data.preferences]);
+                  }
+                  break;
+
                 case "done":
                   // Flush any remaining buffered text
                   if (flushTimerRef.current) {
@@ -322,8 +354,22 @@ export function ChatInterface({ onGraphUpdate, externalInput, onExternalInputCon
                       toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
                     },
                   ]);
+                  // Attach entities/preferences from the streaming state
+                  setMessages((prev) => {
+                    const last = prev[prev.length - 1];
+                    if (!last || last.role !== "assistant") return prev;
+                    const updated = [...prev];
+                    updated[updated.length - 1] = {
+                      ...last,
+                      entities: streamingEntities.length > 0 ? [...streamingEntities] : undefined,
+                      preferences: streamingPreferences.length > 0 ? [...streamingPreferences] : undefined,
+                    };
+                    return updated;
+                  });
                   setStreamingContent("");
                   setStreamingToolCalls([]);
+                  setStreamingEntities([]);
+                  setStreamingPreferences([]);
                   textBufferRef.current = "";
                   break;
 
@@ -361,6 +407,8 @@ export function ChatInterface({ onGraphUpdate, externalInput, onExternalInputCon
       ]);
       setStreamingContent("");
       setStreamingToolCalls([]);
+      setStreamingEntities([]);
+      setStreamingPreferences([]);
       textBufferRef.current = "";
     } finally {
       clearTimeout(timeout);
@@ -480,6 +528,26 @@ export function ChatInterface({ onGraphUpdate, externalInput, onExternalInputCon
                         </>
                       );
                     })()}
+                    {/* Extracted entities */}
+                    {msg.entities && msg.entities.length > 0 && (
+                      <HStack gap={1} mt={2} flexWrap="wrap">
+                        {msg.entities.map((e, i) => (
+                          <Badge key={i} size="xs" colorPalette="teal" variant="subtle">
+                            {e.type}{e.subtype ? `/${e.subtype}` : ""}: {e.name}
+                          </Badge>
+                        ))}
+                      </HStack>
+                    )}
+                    {/* Detected preferences */}
+                    {msg.preferences && msg.preferences.length > 0 && (
+                      <HStack gap={1} mt={1} flexWrap="wrap">
+                        {msg.preferences.map((p, i) => (
+                          <Badge key={i} size="xs" colorPalette="orange" variant="subtle">
+                            {p.category}: {p.preference}
+                          </Badge>
+                        ))}
+                      </HStack>
+                    )}
                     {msg.retryInput && (
                       <Button
                         size="xs"

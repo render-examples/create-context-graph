@@ -95,6 +95,8 @@ async def chat_stream(request: ChatRequest):
       - tool_start: {name, inputs}
       - tool_end:   {name, output_preview, graph_data}
       - text_delta: {text}
+      - entities_extracted: {entities}
+      - preferences_detected: {preferences}
       - done:       {response}
       - error:      {detail}
     """
@@ -116,6 +118,11 @@ async def chat_stream(request: ChatRequest):
                 result = await handle_message(request.message, session_id)
                 response_text = result.get("response", "")
                 collector.emit_text_delta(response_text)
+                # Emit extraction events if present
+                if result.get("entities_extracted"):
+                    collector.emit_entities_extracted(result["entities_extracted"])
+                if result.get("preferences_detected"):
+                    collector.emit_preferences_detected(result["preferences_detected"])
                 collector.emit_done(response_text, session_id)
         except Exception as e:
             try:

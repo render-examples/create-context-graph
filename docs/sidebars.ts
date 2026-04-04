@@ -26,6 +26,7 @@ const sidebars: SidebarsConfig = {
         'how-to/use-neo4j-aura',
         'how-to/use-neo4j-local',
         'how-to/use-docker',
+        'how-to/connect-claude-desktop',
       ],
     },
     {

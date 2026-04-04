@@ -22,13 +22,14 @@ uvx create-context-graph --domain healthcare --framework pydanticai --demo-data
 
 Create Context Graph walks you through an interactive wizard and generates a complete project:
 
-- **FastAPI backend** with an AI agent configured for your domain, powered by [neo4j-agent-memory](https://github.com/neo4j-labs/agent-memory) for multi-turn conversations
+- **FastAPI backend** with an AI agent configured for your domain, powered by [neo4j-agent-memory](https://github.com/neo4j-labs/agent-memory) v0.1.0 for multi-turn conversations with automatic entity extraction and preference detection
 - **Next.js + Chakra UI v3 frontend** with streaming chat (Server-Sent Events), real-time tool call visualization (Timeline with live spinners), interactive graph visualization (schema view, double-click expand, drag/zoom, property panel), entity detail panel, document browser, and decision trace viewer
 - **Neo4j schema** with domain-specific constraints, indexes, and GDS projections
 - **Rich demo data** — LLM-generated entities, relationships, professional documents (discharge summaries, trade confirmations, lab reports), and multi-step decision traces
 - **SaaS data import** — connect GitHub, Slack, Gmail, Jira, Notion, Google Calendar, or Salesforce
 - **Custom domains** — describe your domain in plain English and the LLM generates a complete ontology
 - **Domain-specific agent tools** with Cypher queries tailored to your industry
+- **MCP server for Claude Desktop** — optionally generates an MCP server config so Claude Desktop can query the same knowledge graph (`--with-mcp`)
 
 ```
   Creating context graph application...
@@ -88,6 +89,13 @@ uvx create-context-graph my-app \
   --framework pydanticai \
   --connector github \
   --connector slack
+
+# With MCP server for Claude Desktop
+uvx create-context-graph my-app \
+  --domain healthcare \
+  --framework pydanticai \
+  --demo-data \
+  --with-mcp
 ```
 
 ### 2. Start the app
@@ -205,6 +213,7 @@ my-app/
 │   │   ├── routes.py              # REST API endpoints
 │   │   ├── models.py              # Pydantic models (from ontology)
 │   │   ├── context_graph_client.py # Neo4j CRUD operations
+│   │   ├── memory.py              # Memory integration (MemoryIntegration)
 │   │   ├── gds_client.py          # Graph Data Science algorithms
 │   │   ├── vector_client.py       # Vector search
 │   │   └── connectors/            # SaaS connectors (if selected)
@@ -234,6 +243,7 @@ my-app/
 ├── .dockerignore                  # Docker build context exclusions
 ├── docker-compose.yml             # Local Neo4j instance (Docker mode only)
 ├── Makefile                       # start, seed, reset, install, test, test-connection, lint
+├── mcp/                           # MCP server config (only if --with-mcp)
 └── README.md                      # Domain-specific documentation (with framework docs + troubleshooting)
 ```
 
@@ -274,6 +284,11 @@ Options:
   --claude-code-since TEXT Import sessions since date (ISO format)
   --claude-code-max-sessions INT Max sessions to import, 0=all (default: 0)
   --claude-code-content TEXT Content mode: truncated, full, none (default: truncated)
+  --with-mcp                Generate MCP server configuration for Claude Desktop
+  --mcp-profile TEXT        MCP tool profile: core (6 tools) or extended (16 tools, default)
+  --session-strategy TEXT   Memory session strategy: per_conversation (default), per_day, persistent
+  --auto-extract/--no-auto-extract  Auto-extract entities from messages (default: on)
+  --auto-preferences/--no-auto-preferences  Auto-detect user preferences (default: on)
   --ingest                  Ingest data into Neo4j after generation
   --neo4j-uri TEXT          Neo4j connection URI [env: NEO4J_URI]
   --neo4j-username TEXT     Neo4j username [env: NEO4J_USERNAME]
@@ -303,6 +318,8 @@ Every generated app demonstrates the three-memory-type architecture from [neo4j-
 
 This is what makes context graphs different from simple RAG — the agent doesn't just retrieve text, it reasons over a structured knowledge graph with full decision traceability.
 
+With `--with-mcp`, the generated project also includes an MCP server configuration that connects Claude Desktop to the same knowledge graph. This dual-interface architecture means the web app and Claude Desktop share one context graph — entities, conversations, and reasoning traces are available everywhere.
+
 ## Development
 
 ```bash
@@ -313,8 +330,8 @@ uv venv && uv pip install -e ".[dev]"
 
 # Run tests (no Neo4j or API keys required)
 source .venv/bin/activate
-pytest tests/ -v               # Fast: 874 tests
-pytest tests/ -v --slow        # Full: 1,084 tests (includes domain x framework matrix + perf + generated project tests)
+pytest tests/ -v               # Fast: 1,053 tests
+pytest tests/ -v --slow        # Full: 1,259 tests (includes domain x framework matrix + perf + generated project tests)
 pytest tests/ --integration    # Integration tests (requires running Neo4j)
 
 # Test a specific scaffold
@@ -325,8 +342,8 @@ create-context-graph /tmp/test-app --domain software-engineering --framework pyd
 
 | Target | Description | Requirements |
 |--------|-------------|--------------|
-| `make test` | Run fast unit tests (874 tests) | None |
-| `make test-slow` | Full suite including matrix + perf + generated project tests (1,084 tests) | None |
+| `make test` | Run fast unit tests (1,053 tests) | None |
+| `make test-slow` | Full suite including matrix + perf + generated project tests (1,259 tests) | None |
 | `make test-matrix` | Domain × framework matrix only (176 combos) | None |
 | `make test-coverage` | Tests with HTML coverage report | None |
 | `make smoke-test` | E2E smoke tests for 3 key frameworks | Neo4j + LLM API keys |
@@ -367,9 +384,9 @@ GitHub Actions (`.github/workflows/ci.yml`) runs automatically:
 
 | Job | Trigger | Description |
 |-----|---------|-------------|
-| **test** | All pushes + PRs | Unit tests on Python 3.11 and 3.12 (874 tests including security, doc snippets, frontend logic) |
+| **test** | All pushes + PRs | Unit tests on Python 3.11 and 3.12 (1,053 tests including security, doc snippets, frontend logic) |
 | **lint** | All pushes + PRs | Ruff linter on `src/` and `tests/` |
-| **matrix** | Push to `main` only | Full suite + 176 domain × framework matrix + perf + generated project tests (1,084 tests) |
+| **matrix** | Push to `main` only | Full suite + 176 domain × framework matrix + perf + generated project tests (1,259 tests) |
 | **smoke-test** | Push to `main` only | Neo4j integration tests + E2E for all 8 frameworks (scaffold → install → start → chat) |
 
 The smoke-test CI job is gated behind a `SMOKE_TESTS_ENABLED` repository variable. To enable it:

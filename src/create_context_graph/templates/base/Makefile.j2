@@ -74,6 +74,15 @@ neo4j-status:
 	npx --yes @johnymontana/neo4j-local status
 {% endif %}
 
+{% if with_mcp %}
+# MCP Server for Claude Desktop
+mcp-server:  ## Start MCP server for Claude Desktop
+	cd backend && uv run python -m neo4j_agent_memory.mcp.server \
+		--neo4j-uri $${NEO4J_URI:-neo4j://localhost:7687} \
+		--neo4j-password $${NEO4J_PASSWORD:-password} \
+		--profile {{ mcp_profile }}
+{% endif %}
+
 {% if saas_connectors %}
 # Data import from connected services
 import:

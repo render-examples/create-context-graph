@@ -13,7 +13,7 @@ Given a domain (like healthcare, financial services, or wildlife management) and
 
 - **22 built-in domains** -- healthcare, financial services, real estate, manufacturing, scientific research, software engineering, and more. Each domain ships with a complete ontology, agent tools, demo scenarios, and fixture data.
 - **8 agent frameworks** -- PydanticAI, Claude Agent SDK, OpenAI Agents SDK, LangGraph, CrewAI, Strands, Google ADK, and Anthropic Tools. Pick the one you know, or try something new.
-- **Multi-turn conversations** -- every generated agent uses [neo4j-agent-memory](https://github.com/neo4j-labs/agent-memory) for conversation persistence. Session history is stored in Neo4j and retrieved on each turn, so follow-up questions work naturally.
+- **Multi-turn conversations** -- every generated agent uses [neo4j-agent-memory](https://github.com/neo4j-labs/agent-memory) v0.1.0 for conversation persistence with automatic entity extraction and preference detection. Session history is stored in Neo4j and retrieved on each turn, so follow-up questions work naturally.
 - **Graph-native AI agents** -- every generated agent comes with Cypher-powered tools for querying entities, relationships, and decision traces in Neo4j. Tool calls stream in real-time with live progress indicators.
 - **Streaming chat** -- responses stream token-by-token via Server-Sent Events. Tool calls appear as a live timeline with spinner indicators as each executes. The graph visualization updates incrementally after each tool completes, not just at the end.
 - **Interactive graph visualization** -- the frontend includes an NVL-powered graph explorer with entity detail panel (click any node to see all properties and connections), a document browser with template filtering, and a decision trace viewer.
@@ -21,6 +21,7 @@ Given a domain (like healthcare, financial services, or wildlife management) and
 - **Flexible Neo4j setup** -- connect to Neo4j Aura (free cloud tier with `.env` import), run locally with `@johnymontana/neo4j-local` (no Docker needed), use Docker Compose, or connect to any existing instance.
 - **SaaS data import** -- connect Gmail, Slack, Jira, GitHub, Notion, Salesforce, Linear, Google Workspace, and Claude Code to populate your graph with real data. The Claude Code connector imports your local AI coding session history with decision extraction and preference analysis -- no API keys required.
 - **Custom domains** -- describe your domain and let the tool generate a complete ontology, or write your own YAML definition from scratch.
+- **MCP server for Claude Desktop** -- optionally generate an MCP server config so Claude Desktop queries the same knowledge graph as your web app. Two interfaces, one context graph.
 
 ## Quick Install
 

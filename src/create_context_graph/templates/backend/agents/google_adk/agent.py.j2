@@ -5,8 +5,6 @@ from __future__ import annotations
 import asyncio
 import json
 import threading
-import uuid
-
 # Google ADK calls sync tool functions from within its async run_async() loop,
 # requiring nest_asyncio to bridge sync tools back to async execute_cypher().
 import nest_asyncio
@@ -17,10 +15,8 @@ from google.adk.agents import Agent
 from google.adk.tools import FunctionTool
 
 from app.config import settings
-from app.context_graph_client import (
-    execute_cypher, get_schema,
-    get_conversation_history, store_message, get_collector,
-)
+from app.context_graph_client import execute_cypher, get_schema, get_collector
+from app.memory import store_message, get_context, resolve_session_id
 
 
 _main_loop: asyncio.AbstractEventLoop | None = None
@@ -138,12 +134,12 @@ def _get_runner():
 
 async def handle_message(message: str, session_id: str | None = None) -> dict:
     """Handle an incoming chat message."""
-    if session_id is None:
-        session_id = str(uuid.uuid4())
+    session_id = resolve_session_id(session_id)
 
-    # Retrieve conversation history and store the new user message
-    history = await get_conversation_history(session_id)
+    # Store user message and retrieve context
     await store_message(session_id, "user", message)
+    context = await get_context(session_id, query=message)
+    history = context.get("messages", [])
 
     runner, session_service = _get_runner()
 
@@ -188,23 +184,25 @@ async def handle_message(message: str, session_id: str | None = None) -> dict:
         pass
 
     response_text = response_text or "No response generated."
-    await store_message(session_id, "assistant", response_text)
+    assistant_result = await store_message(session_id, "assistant", response_text)
 
     return {
         "response": response_text,
         "session_id": session_id,
         "graph_data": None,
+        "entities_extracted": (assistant_result or {}).get("entities", []),
+        "preferences_detected": (assistant_result or {}).get("preferences", []),
     }
 
 
 async def handle_message_stream(message: str, session_id: str | None = None) -> None:
     """Handle a chat message with streaming text deltas via the collector event queue."""
-    if session_id is None:
-        session_id = str(uuid.uuid4())
+    session_id = resolve_session_id(session_id)
 
     collector = get_collector()
-    history = await get_conversation_history(session_id)
     await store_message(session_id, "user", message)
+    context = await get_context(session_id, query=message)
+    history = context.get("messages", [])
 
     runner, session_service = _get_runner()
 
@@ -247,6 +245,9 @@ async def handle_message_stream(message: str, session_id: str | None = None) -> 
         pass
 
     response_text = response_text or "No response generated."
-    await store_message(session_id, "assistant", response_text)
+    assistant_result = await store_message(session_id, "assistant", response_text)
+    if assistant_result:
+        collector.emit_entities_extracted(assistant_result.get("entities", []))
+        collector.emit_preferences_detected(assistant_result.get("preferences", []))
     collector.emit_done(response_text, session_id)
 {% endraw %}

@@ -197,3 +197,51 @@ class TestGoogleApiKey:
             google_api_key="test-key-123",
         )
         assert config.google_api_key == "test-key-123"
+
+    def test_memory_defaults(self):
+        """Verify default values for memory enhancement fields."""
+        config = ProjectConfig(
+            project_name="Test",
+            domain="healthcare",
+            framework="pydanticai",
+        )
+        assert config.with_mcp is False
+        assert config.mcp_profile == "extended"
+        assert config.session_strategy == "per_conversation"
+        assert config.auto_extract is True
+        assert config.auto_preferences is True
+
+    def test_mcp_config(self):
+        """Verify MCP fields can be set."""
+        config = ProjectConfig(
+            project_name="Test",
+            domain="healthcare",
+            framework="pydanticai",
+            with_mcp=True,
+            mcp_profile="core",
+        )
+        assert config.with_mcp is True
+        assert config.mcp_profile == "core"
+
+    def test_session_strategy_values(self):
+        """Verify all session strategy values are accepted."""
+        for strategy in ["per_conversation", "per_day", "persistent"]:
+            config = ProjectConfig(
+                project_name="Test",
+                domain="healthcare",
+                framework="pydanticai",
+                session_strategy=strategy,
+            )
+            assert config.session_strategy == strategy
+
+    def test_auto_extract_disabled(self):
+        """Verify auto_extract and auto_preferences can be disabled."""
+        config = ProjectConfig(
+            project_name="Test",
+            domain="healthcare",
+            framework="pydanticai",
+            auto_extract=False,
+            auto_preferences=False,
+        )
+        assert config.auto_extract is False
+        assert config.auto_preferences is False

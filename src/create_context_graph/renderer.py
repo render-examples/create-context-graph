@@ -239,6 +239,11 @@ class ProjectRenderer:
             "pydantic_models": generate_pydantic_models(self.ontology),
             "visualization": generate_visualization_config(self.ontology),
             "saas_connectors": self.config.saas_connectors,
+            "with_mcp": self.config.with_mcp,
+            "mcp_profile": self.config.mcp_profile,
+            "session_strategy": self.config.session_strategy,
+            "auto_extract": self.config.auto_extract,
+            "auto_preferences": self.config.auto_preferences,
         }
 
     def _build_system_prompt(self) -> str:
@@ -341,6 +346,19 @@ class ProjectRenderer:
             ctx,
         )
 
+        # MCP server config (only if --with-mcp)
+        if self.config.with_mcp:
+            self._render_template(
+                "base/mcp/claude_desktop_config.json.j2",
+                output_dir / "mcp" / "claude_desktop_config.json",
+                ctx,
+            )
+            self._render_template(
+                "base/mcp/README.md.j2",
+                output_dir / "mcp" / "README.md",
+                ctx,
+            )
+
     def _render_backend(self, backend_dir: Path, ctx: dict) -> None:
         """Render the FastAPI backend."""
         shared_templates = {
@@ -352,6 +370,7 @@ class ProjectRenderer:
             "backend/shared/vector_client.py.j2": "app/vector_client.py",
             "backend/shared/models.py.j2": "app/models.py",
             "backend/shared/routes.py.j2": "app/routes.py",
+            "backend/shared/memory.py.j2": "app/memory.py",
             "backend/shared/pyproject.toml.j2": "pyproject.toml",
         }
         for template_name, output_name in shared_templates.items():

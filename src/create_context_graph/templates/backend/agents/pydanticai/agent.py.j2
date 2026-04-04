@@ -24,10 +24,8 @@ if not os.environ.get("ANTHROPIC_API_KEY"):
 
 from pydantic_ai import Agent, RunContext
 
-from app.context_graph_client import (
-    execute_cypher, get_schema,
-    get_conversation_history, store_message,
-)
+from app.context_graph_client import execute_cypher, get_schema
+from app.memory import store_message, get_context, resolve_session_id
 
 
 SYSTEM_PROMPT = """{{ system_prompt }}
@@ -107,12 +105,14 @@ async def get_graph_schema(ctx: RunContext[AgentDeps]) -> str:
 
 async def handle_message(message: str, session_id: str | None = None) -> dict:
     """Handle an incoming chat message."""
-    if session_id is None:
-        session_id = str(uuid.uuid4())
+    session_id = resolve_session_id(session_id)
 
-    # Retrieve conversation history and store the new user message
-    history = await get_conversation_history(session_id)
+    # Store user message (triggers entity extraction + preference detection)
     await store_message(session_id, "user", message)
+
+    # Get rich context (messages + entities + preferences + traces)
+    context = await get_context(session_id, query=message)
+    history = context.get("messages", [])
 
     # Convert history to PydanticAI message format
     from pydantic_ai.messages import ModelRequest, ModelResponse, UserPromptPart, TextPart
@@ -135,12 +135,14 @@ async def handle_message(message: str, session_id: str | None = None) -> dict:
     response_text = result.output or ""
     if not response_text.strip():
         response_text = "I searched the knowledge graph but couldn't find relevant results for your query. Could you try rephrasing your question?"
-    await store_message(session_id, "assistant", response_text)
+    assistant_result = await store_message(session_id, "assistant", response_text)
 
     return {
         "response": response_text,
         "session_id": session_id,
         "graph_data": None,
+        "entities_extracted": (assistant_result or {}).get("entities", []),
+        "preferences_detected": (assistant_result or {}).get("preferences", []),
     }
 
 
@@ -148,12 +150,14 @@ async def handle_message_stream(message: str, session_id: str | None = None) -> 
     """Handle a chat message with streaming text deltas via the collector event queue."""
     from app.context_graph_client import get_collector
 
-    if session_id is None:
-        session_id = str(uuid.uuid4())
+    session_id = resolve_session_id(session_id)
 
     collector = get_collector()
-    history = await get_conversation_history(session_id)
     await store_message(session_id, "user", message)
+
+    # Get rich context (messages + entities + preferences + traces)
+    context = await get_context(session_id, query=message)
+    history = context.get("messages", [])
 
     # Convert history to PydanticAI message format
     from pydantic_ai.messages import ModelRequest, ModelResponse, UserPromptPart, TextPart
@@ -184,7 +188,10 @@ async def handle_message_stream(message: str, session_id: str | None = None) -> 
         response_text = "I searched the knowledge graph but couldn't find relevant results for your query. Could you try rephrasing your question?"
 
     collector.emit_text_delta(response_text)
-    await store_message(session_id, "assistant", response_text)
+    assistant_result = await store_message(session_id, "assistant", response_text)
+    if assistant_result:
+        collector.emit_entities_extracted(assistant_result.get("entities", []))
+        collector.emit_preferences_detected(assistant_result.get("preferences", []))
     collector.emit_done(response_text, session_id)
 
     return {

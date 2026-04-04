@@ -25,6 +25,18 @@ uvx create-context-graph my-app \
 
 This generates a complete project in `./my-app/` with a FastAPI backend, Next.js frontend, and sample healthcare data.
 
+### With MCP Server for Claude Desktop
+
+```bash
+uvx create-context-graph my-app \
+  --domain healthcare \
+  --framework pydanticai \
+  --demo-data \
+  --with-mcp
+```
+
+This generates an MCP server configuration alongside the web app. After setup, copy `mcp/claude_desktop_config.json` into your Claude Desktop config to query the knowledge graph directly from Claude.
+
 :::tip
 Use `--demo` instead of `--demo-data` to also reset the database and ingest data in one step (requires Neo4j connection).
 :::

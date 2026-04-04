@@ -22,6 +22,9 @@ from typing import Literal
 from pydantic import BaseModel, Field, computed_field
 
 
+SESSION_STRATEGIES = ["per_conversation", "per_day", "persistent"]
+MCP_PROFILES = ["core", "extended"]
+
 SUPPORTED_FRAMEWORKS = [
     "pydanticai",
     "claude-agent-sdk",
@@ -79,6 +82,21 @@ class ProjectConfig(BaseModel):
     custom_domain_yaml: str | None = Field(default=None, exclude=True)
     saas_connectors: list[str] = Field(default_factory=list)
     saas_credentials: dict[str, dict[str, str]] = Field(default_factory=dict, exclude=True)
+
+    # Memory enhancement settings (neo4j-agent-memory v0.1.0)
+    with_mcp: bool = Field(default=False, description="Generate MCP server config for Claude Desktop")
+    mcp_profile: Literal["core", "extended"] = Field(
+        default="extended", description="MCP tool profile"
+    )
+    session_strategy: Literal["per_conversation", "per_day", "persistent"] = Field(
+        default="per_conversation", description="Memory session strategy"
+    )
+    auto_extract: bool = Field(
+        default=True, description="Auto-extract entities from messages"
+    )
+    auto_preferences: bool = Field(
+        default=True, description="Auto-detect user preferences from messages"
+    )
 
     @computed_field
     @property
