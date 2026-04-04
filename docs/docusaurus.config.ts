@@ -60,6 +60,16 @@ const config: Config = {
           label: 'Docs',
         },
         {
+          to: '/docs/reference/cli-options',
+          label: 'CLI Reference',
+          position: 'left',
+        },
+        {
+          type: 'html',
+          position: 'right',
+          value: '<code style="font-size:12px;padding:4px 8px;background:rgba(99,102,241,0.1);border-radius:4px;color:var(--ifm-color-primary);font-family:JetBrains Mono,monospace">uvx create-context-graph</code>',
+        },
+        {
           href: 'https://github.com/neo4j-labs/create-context-graph',
           label: 'GitHub',
           position: 'right',
@@ -91,8 +101,16 @@ const config: Config = {
             {label: 'neo4j-agent-memory', href: 'https://github.com/neo4j-labs/agent-memory'},
           ],
         },
+        {
+          title: 'Project',
+          items: [
+            {label: 'License (Apache 2.0)', href: 'https://github.com/neo4j-labs/create-context-graph/blob/main/LICENSE'},
+            {label: 'Changelog', href: 'https://github.com/neo4j-labs/create-context-graph/releases'},
+            {label: 'Contributing', href: 'https://github.com/neo4j-labs/create-context-graph/blob/main/CONTRIBUTING.md'},
+          ],
+        },
       ],
-      copyright: `Copyright ${new Date().getFullYear()} Neo4j Labs. Built with Docusaurus.`,
+      copyright: `Copyright ${new Date().getFullYear()} Neo4j Labs. Open source under Apache 2.0. Built with Docusaurus.`,
     },
     prism: {
       theme: prismThemes.github,

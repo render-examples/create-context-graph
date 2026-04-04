@@ -11,10 +11,10 @@ import styles from "./ContextGraphExplainer.module.css";
 // --- Graph data for the three memory layers ---
 
 const SHORT_TERM_NODES = [
-  { id: "conv", label: "Conversation", cx: 250, cy: 180, r: 22 },
-  { id: "msg1", label: "Message", cx: 150, cy: 260, r: 14 },
-  { id: "msg2", label: "Message", cx: 250, cy: 290, r: 14 },
-  { id: "msg3", label: "Message", cx: 350, cy: 260, r: 14 },
+  { id: "conv", label: "Conv", cx: 250, cy: 180, r: 22 },
+  { id: "msg1", label: "Msg", cx: 150, cy: 260, r: 14 },
+  { id: "msg2", label: "Msg", cx: 250, cy: 290, r: 14 },
+  { id: "msg3", label: "Msg", cx: 350, cy: 260, r: 14 },
 ];
 
 const SHORT_TERM_EDGES = [
@@ -25,8 +25,8 @@ const SHORT_TERM_EDGES = [
 
 const LONG_TERM_NODES = [
   { id: "person", label: "Person", cx: 100, cy: 120, r: 18 },
-  { id: "org", label: "Organization", cx: 400, cy: 120, r: 18 },
-  { id: "location", label: "Location", cx: 400, cy: 240, r: 16 },
+  { id: "org", label: "Org", cx: 400, cy: 120, r: 18 },
+  { id: "location", label: "Loc", cx: 400, cy: 240, r: 16 },
   { id: "event", label: "Event", cx: 100, cy: 240, r: 16 },
 ];
 
@@ -39,9 +39,9 @@ const LONG_TERM_EDGES = [
 ];
 
 const REASONING_NODES = [
-  { id: "tool1", label: "ToolCall", cx: 170, cy: 70, r: 14 },
-  { id: "tool2", label: "ToolCall", cx: 330, cy: 70, r: 14 },
-  { id: "trace", label: "DecisionTrace", cx: 250, cy: 40, r: 16 },
+  { id: "tool1", label: "Tool", cx: 170, cy: 70, r: 14 },
+  { id: "tool2", label: "Tool", cx: 330, cy: 70, r: 14 },
+  { id: "trace", label: "Trace", cx: 250, cy: 40, r: 16 },
 ];
 
 const REASONING_EDGES = [
@@ -327,9 +327,9 @@ function GraphLayer({
           />
           <text
             x={node.cx}
-            y={node.cy + 4}
-            fill="rgba(0,0,0,0.7)"
-            fontSize={10}
+            y={node.cy + 3}
+            fill="rgba(0,0,0,0.8)"
+            fontSize={node.r >= 18 ? 9 : 8}
             textAnchor="middle"
             fontFamily="Inter, sans-serif"
             fontWeight={600}

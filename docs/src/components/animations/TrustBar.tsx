@@ -27,7 +27,7 @@ export function TrustBar() {
 function CountUpStat({ label, target }: { label: string; target: number }) {
   const reducedMotion = useReducedMotion();
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-50px" });
+  const isInView = useInView(ref, { once: true, margin: "0px" });
   const motionVal = useMotionValue(reducedMotion ? target : 0);
   const [displayValue, setDisplayValue] = useState(reducedMotion ? target : 0);
 
@@ -40,6 +40,17 @@ function CountUpStat({ label, target }: { label: string; target: number }) {
       animate(motionVal, target, { duration: 1.5, ease: "easeOut" });
     }
   }, [isInView, motionVal, target, reducedMotion]);
+
+  // Fallback: ensure counters animate even if useInView fails to trigger
+  useEffect(() => {
+    if (reducedMotion) return;
+    const timer = setTimeout(() => {
+      if (motionVal.get() === 0) {
+        animate(motionVal, target, { duration: 1.5, ease: "easeOut" });
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [motionVal, target, reducedMotion]);
 
   return (
     <div ref={ref} className={styles.stat}>

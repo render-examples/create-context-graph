@@ -49,6 +49,11 @@ export function FrameworkGrid() {
             </motion.div>
           ))}
         </div>
+
+        <p className={styles.badgeExplainer}>
+          <strong>Full Streaming</strong> = token-by-token text + tool events &middot;{" "}
+          <strong>Tool Events</strong> = real-time tool visualization with text at completion
+        </p>
       </div>
     </section>
   );

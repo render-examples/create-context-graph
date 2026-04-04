@@ -48,8 +48,9 @@
 }
 
 [data-theme="light"] .card {
-  border-color: rgba(0, 0, 0, 0.08);
-  background: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.03);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 [data-theme="light"] .card:hover {
@@ -104,6 +105,13 @@
 [data-theme="light"] .codeSnippet {
   color: rgba(0, 0, 0, 0.6);
   background: rgba(0, 0, 0, 0.04);
+}
+
+.badgeExplainer {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-600);
+  margin-top: 1.5rem;
 }
 
 @media (max-width: 996px) {

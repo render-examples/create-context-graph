@@ -1,6 +1,6 @@
 .scrollContainer {
   position: relative;
-  min-height: 400vh;
+  min-height: 250vh;
   background: linear-gradient(180deg, #0a0a1a 0%, #0d1117 10%, #0d1117 90%, var(--ifm-background-color) 100%);
 }
 
@@ -28,12 +28,12 @@
 }
 
 .sectionSubtitle {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.7);
   font-size: 1.1rem;
 }
 
 [data-theme="light"] .sectionSubtitle {
-  color: rgba(0, 0, 0, 0.5);
+  color: rgba(0, 0, 0, 0.65);
 }
 
 .sticky {
@@ -97,7 +97,7 @@
 .memoryDescription {
   font-size: 1rem;
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .memoryBadge {
@@ -145,16 +145,16 @@
 .staticCardDesc {
   font-size: 0.85rem;
   line-height: 1.5;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.75);
 }
 
 /* Light mode text */
 [data-theme="light"] .memoryDescription {
-  color: rgba(0, 0, 0, 0.5);
+  color: rgba(0, 0, 0, 0.65);
 }
 
 [data-theme="light"] .staticCardDesc {
-  color: rgba(0, 0, 0, 0.5);
+  color: rgba(0, 0, 0, 0.65);
 }
 
 [data-theme="light"] .staticCard {
@@ -164,7 +164,7 @@
 
 @media (max-width: 768px) {
   .scrollContainer {
-    min-height: 300vh;
+    min-height: 200vh;
   }
 
   .sectionTitle {
