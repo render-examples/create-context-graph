@@ -6,7 +6,7 @@ sidebar_position: 3
 
 AI agents need memory to be useful. But not all memory is created equal. This page explains why graph-structured memory — what we call a **context graph** — is fundamentally better for AI agents than flat document stores or vector databases alone.
 
-{/* TODO: Export from graph-vs-flat.excalidraw and replace placeholder */}
+<!-- TODO: Export from graph-vs-flat.excalidraw and replace placeholder -->
 ![Side-by-side comparison of flat memory vs context graph](/img/graph-vs-flat.png)
 
 ```mermaid

@@ -7,7 +7,7 @@ title: Import Data from SaaS Services
 
 Create Context Graph can pull data from SaaS services and map it into your Neo4j knowledge graph. This guide covers how to configure connectors during project scaffolding and how to re-import data afterward.
 
-{/* TODO: Export from connector-data-flow.excalidraw and replace placeholder */}
+<!-- TODO: Export from connector-data-flow.excalidraw and replace placeholder -->
 ![SaaS connector data flow: from external services through connectors into Neo4j](/img/connector-data-flow.png)
 
 ## Available Connectors

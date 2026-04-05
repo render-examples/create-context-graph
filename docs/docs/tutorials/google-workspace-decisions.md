@@ -24,7 +24,7 @@ A full-stack application that:
 - Provides **10 decision-focused agent tools** for querying your decision graph
 - Connects Google Workspace decisions to Linear issues when both connectors are active
 
-<!-- TODO: Export from gws-decision-flow.excalidraw: ![Decision flow from Google Docs comment threads to the knowledge graph](/img/gws-decision-flow.png) -->
+![Decision flow from Google Docs comment threads to the knowledge graph](/img/gws-decision-flow.png)
 
 ### Agent tools
 
@@ -251,7 +251,7 @@ Once both are running, open [http://localhost:3000](http://localhost:3000) in yo
 
 When the app loads, the graph schema view shows the entity types imported from Google Workspace:
 
-<!-- TODO: Export from gws-graph-schema.excalidraw: ![Google Workspace decision graph schema](/img/gws-graph-schema.png) -->
+![Google Workspace decision graph schema](/img/gws-graph-schema.png)
 
 - **Document** nodes (your Google Docs, Sheets, and Slides) connected to **Person** nodes via `CREATED_BY` and `SHARED_WITH`
 - **DecisionThread** nodes linked to Documents via `HAS_COMMENT_THREAD` -- these are the extracted comment threads
@@ -353,7 +353,7 @@ The real power emerges when you combine Google Workspace with the Linear connect
 You don't need to have completed the [Linear tutorial](/docs/tutorials/linear-context-graph) first. Both connectors run in the same scaffold command. However, the `cross_reference` tool and `RELATES_TO_ISSUE` relationships only work if your Google Docs reference Linear issue identifiers (like `ENG-456`).
 :::
 
-<!-- TODO: Export from gws-linear-combined.excalidraw: ![Combined decision lifecycle: Meeting → Document → DecisionThread → Linear Issue](/img/gws-linear-combined.png) -->
+![Combined decision lifecycle: Meeting → Document → DecisionThread → Linear Issue](/img/gws-linear-combined.png)
 
 ```bash
 uvx create-context-graph my-full-context-app \

@@ -41,7 +41,7 @@ A full-stack application that:
 
 ### How it works
 
-<!-- TODO: Export from claude-code-data-flow.excalidraw: ![Data flow from Claude Code sessions to the knowledge graph application](/img/claude-code-data-flow.png) -->
+![Data flow from Claude Code sessions to the knowledge graph application](/img/claude-code-data-flow.png)
 
 The CLI reads your local Claude Code session files, extracts entities (files, decisions, preferences, errors) and relationships, scaffolds a full-stack application, and seeds the data into Neo4j. The generated agent uses the 8 tools above to query the graph and answer questions about your development history.
 
@@ -247,7 +247,7 @@ When the app loads, the graph visualization shows the schema view -- the entity 
 
 <!-- TODO: Add screenshot: ![Schema view showing session graph entity types](/img/claude-code-schema-view.png) -->
 
-<!-- TODO: Export from claude-code-graph-schema.excalidraw: ![Claude Code session graph schema showing entity types and relationships](/img/claude-code-graph-schema.png) -->
+![Claude Code session graph schema showing entity types and relationships](/img/claude-code-graph-schema.png)
 
 - **Project** nodes representing each project directory, connected to **Session** nodes via `HAS_SESSION`
 - **Session** nodes linked to **Message** nodes via `HAS_MESSAGE`, with `NEXT` chains preserving conversation order
@@ -336,7 +336,7 @@ As you chat with the agent, the graph visualization updates in real-time:
 
 The connector identifies four types of decisions automatically:
 
-<!-- TODO: Export from claude-code-decision-extraction.excalidraw: ![Four types of decision extraction from Claude Code sessions](/img/claude-code-decision-extraction.png) -->
+![Four types of decision extraction from Claude Code sessions](/img/claude-code-decision-extraction.png)
 
 1. **User corrections** -- When you redirect Claude's approach ("No, use OAuth2 instead of JWT"), the original approach becomes a rejected alternative and your correction becomes the chosen one.
 
@@ -493,7 +493,7 @@ Now the agent can correlate your Claude Code sessions with GitHub issues, pull r
 
 The Claude Code connector is designed with privacy in mind:
 
-<!-- TODO: Export from claude-code-data-pipeline.excalidraw: ![Data pipeline showing local-only reads, secret redaction, and content truncation](/img/claude-code-data-pipeline.png) -->
+![Data pipeline showing local-only reads, secret redaction, and content truncation](/img/claude-code-data-pipeline.png)
 
 - **Local data only**: All data is read from your local `~/.claude/projects/` directory. Nothing is sent to external services.
 - **Secret redaction**: API keys, tokens, passwords, and connection strings are automatically detected and replaced with `[REDACTED]` before storage. This is enabled by default.

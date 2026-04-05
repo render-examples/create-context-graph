@@ -26,7 +26,7 @@ graph LR
     STM --> |"Messages"| Neo4j
 ```
 
-{/* TODO: Export from memory-architecture.excalidraw and replace placeholder */}
+<!-- TODO: Export from memory-architecture.excalidraw and replace placeholder -->
 ![Three memory types working together during a chat request](/img/memory-architecture.png)
 
 ## The Three Memory Types

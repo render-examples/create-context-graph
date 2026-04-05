@@ -22,7 +22,7 @@ A full-stack application that:
 
 <!-- TODO: Add screenshot: ![The completed application showing Linear data as an interactive graph](/img/linear-hero.png) -->
 
-<!-- TODO: Export from linear-data-flow.excalidraw: ![Data flow from Linear API to the knowledge graph application](/img/linear-data-flow.png) -->
+![Data flow from Linear API to the knowledge graph application](/img/linear-data-flow.png)
 
 ### Agent tools
 
@@ -223,7 +223,7 @@ Once both are running, open [http://localhost:3000](http://localhost:3000) in yo
 
 When the app loads, you'll see the **graph schema view** showing the entity types and relationships imported from Linear:
 
-<!-- TODO: Export from linear-graph-schema.excalidraw: ![Linear context graph schema showing entity types and relationships](/img/linear-graph-schema.png) -->
+![Linear context graph schema showing entity types and relationships](/img/linear-graph-schema.png)
 
 - **Issue** nodes connected to **Person** (via ASSIGNED_TO, CREATED_BY), **Project** (via BELONGS_TO_PROJECT), **Cycle** (via IN_CYCLE), **Team** (via BELONGS_TO_TEAM), **Label** (via HAS_LABEL), **WorkflowState** (via HAS_STATE), and **ProjectMilestone** (via IN_MILESTONE)
 - **Issue** → **Issue** relationships: **CHILD_OF** (sub-issues), **BLOCKS**, **BLOCKED_BY**, **RELATED_TO**, **DUPLICATE_OF**

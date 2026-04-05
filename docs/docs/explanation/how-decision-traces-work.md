@@ -33,7 +33,7 @@ graph TB
 
 Every organization's most valuable knowledge isn't in its documents -- it's in the spaces *between* documents: the comment thread where someone said "let's go with option B," the meeting where three people aligned on an approach, the email chain where a deadline was negotiated. This section explains how the Google Workspace connector extracts these collaborative signals as graph-connected decision traces.
 
-{/* TODO: Export from decision-trace-structure.excalidraw and replace placeholder */}
+<!-- TODO: Export from decision-trace-structure.excalidraw and replace placeholder -->
 ![Decision trace graph structure: DecisionTrace → TraceStep chain with properties](/img/decision-trace-structure.png)
 
 ## The Problem: The Missing "Why"

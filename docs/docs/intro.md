@@ -9,7 +9,7 @@ title: Introduction
 
 Given a domain (like healthcare, financial services, or wildlife management) and an agent framework, it generates a full-stack application: a FastAPI backend with a configured AI agent, a Next.js + Chakra UI frontend with NVL graph visualization, a Neo4j schema with synthetic data, and domain-specific tools that let the agent query and reason over your knowledge graph.
 
-{/* TODO: Export from app-three-panel.excalidraw and replace placeholder */}
+<!-- TODO: Export from app-three-panel.excalidraw and replace placeholder -->
 ![The generated app's three-panel layout: chat interface, graph visualization, and document browser](/img/app-three-panel.png)
 
 :::info What is POLE+O?
@@ -78,7 +78,7 @@ graph TB
 
 The CLI reads a domain ontology YAML and renders Jinja2 templates into a complete project. The generated backend runs an AI agent with domain-specific Cypher tools. The frontend streams responses via SSE, updating the graph visualization as each tool completes.
 
-{/* TODO: Export from architecture-overview.excalidraw and replace placeholder */}
+<!-- TODO: Export from architecture-overview.excalidraw and replace placeholder -->
 ![Architecture overview: from CLI inputs to running application](/img/architecture-overview.png)
 
 ## Reading Guide
