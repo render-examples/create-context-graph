@@ -56,30 +56,10 @@ uvx create-context-graph --list-domains
 
 ## Architecture
 
-```mermaid
-graph TB
-    CLI["create-context-graph CLI"] --> |"domain YAML + framework"| Engine["Jinja2 Template Engine"]
-    Engine --> Backend["FastAPI Backend"]
-    Engine --> Frontend["Next.js + Chakra UI Frontend"]
-    Engine --> Data["Fixture Data + Cypher Schema"]
+<!-- TODO: Export from architecture-overview.excalidraw and replace with final PNG -->
+![Architecture: generation pipeline (CLI → Jinja2 → backend + frontend + data) and runtime (frontend ↔ backend ↔ Neo4j)](/img/architecture-overview.png)
 
-    Backend --> Agent["AI Agent<br/>(8 frameworks)"]
-    Backend --> Client["Neo4j Client<br/>+ MemoryClient"]
-    Agent --> |"tool calls"| Client
-    Client --> |"Cypher queries"| Neo4j["Neo4j<br/>Knowledge Graph"]
-
-    Frontend --> Chat["Chat Interface<br/>(SSE streaming)"]
-    Frontend --> Graph["NVL Graph<br/>Visualization"]
-    Frontend --> Panels["Documents &<br/>Decision Traces"]
-
-    Chat --> |"POST /chat/stream"| Backend
-    Graph --> |"GET /expand"| Backend
-```
-
-The CLI reads a domain ontology YAML and renders Jinja2 templates into a complete project. The generated backend runs an AI agent with domain-specific Cypher tools. The frontend streams responses via SSE, updating the graph visualization as each tool completes.
-
-<!-- TODO: Export from architecture-overview.excalidraw and replace placeholder -->
-![Architecture overview: from CLI inputs to running application](/img/architecture-overview.png)
+The top half shows **generation**: the CLI reads a domain ontology YAML and renders Jinja2 templates into a complete project (FastAPI backend, Next.js frontend, Cypher schema + fixture data). The bottom half shows the **running application**: the frontend streams chat responses via SSE, the backend agent executes Cypher tool calls against Neo4j, and the graph visualization updates incrementally as each tool completes.
 
 ## Reading Guide
 

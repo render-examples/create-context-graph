@@ -102,8 +102,7 @@ With everything running, you have three interfaces to explore:
 
 ### Frontend -- http://localhost:3000
 
-<!-- TODO: Replace with actual screenshot of the running frontend -->
-![Frontend three-panel layout with chat, graph, and documents](/img/screenshot-frontend.png)
+<!-- TODO: Replace with actual screenshot of the running frontend: ![Frontend three-panel layout with chat, graph, and documents](/img/screenshot-frontend.png) -->
 
 The Next.js frontend provides a three-panel layout:
 
