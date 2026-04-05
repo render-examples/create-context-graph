@@ -82,16 +82,6 @@ While the container is running, open [http://localhost:7474](http://localhost:74
 
 You can run Cypher queries directly to inspect your knowledge graph.
 
-## Production Docker Setup
-
-For production deployment, use the production Docker Compose file:
-
-```bash
-make docker-prod-up
-```
-
-This uses `docker-compose.prod.yml` with separate containers for the backend and frontend, configured for production settings.
-
 ## Troubleshooting
 
 ### Port already in use
@@ -109,3 +99,9 @@ docker-compose logs neo4j
 Common issues:
 - Insufficient memory — Neo4j needs at least 512MB RAM
 - File permission issues on the data volume
+
+## Further Reading
+
+- [Use Neo4j Aura](/docs/how-to/use-neo4j-aura) -- alternative: free managed cloud database
+- [Use Neo4j Local](/docs/how-to/use-neo4j-local) -- alternative: run Neo4j without Docker
+- [Quick Start](/docs/quick-start) -- get a full app running in under 5 minutes

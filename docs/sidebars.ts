@@ -7,6 +7,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Tutorials',
+      collapsed: false,
       items: [
         'tutorials/first-context-graph-app',
         'tutorials/customizing-domain-ontology',
@@ -19,6 +20,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'How-To Guides',
+      collapsed: false,
       items: [
         'how-to/import-saas-data',
         'how-to/add-custom-domain',
@@ -32,6 +34,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Reference',
+      collapsed: false,
       items: [
         'reference/cli-options',
         'reference/ontology-yaml-schema',
@@ -46,6 +49,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Explanation',
+      collapsed: false,
       items: [
         'explanation/how-domain-ontologies-work',
         'explanation/three-memory-types',

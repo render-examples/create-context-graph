@@ -3,25 +3,32 @@ sidebar_position: 1
 title: Introduction
 ---
 
-# Create Context Graph
+# Introduction
 
 **Create Context Graph** is an interactive CLI scaffolding tool that generates complete, domain-specific context graph applications. Think of it as `create-next-app`, but for AI agents backed by graph memory.
 
 Given a domain (like healthcare, financial services, or wildlife management) and an agent framework, it generates a full-stack application: a FastAPI backend with a configured AI agent, a Next.js + Chakra UI frontend with NVL graph visualization, a Neo4j schema with synthetic data, and domain-specific tools that let the agent query and reason over your knowledge graph.
 
+<!-- TODO: Export from app-three-panel.excalidraw and replace placeholder -->
+![The generated app's three-panel layout: chat interface, graph visualization, and document browser](/img/app-three-panel.png)
+
+:::info What is POLE+O?
+The **POLE+O** entity model is the foundation for all context graphs: **P**erson, **O**rganization, **L**ocation, **E**vent, plus **O**bject. Every domain ontology inherits these five base types and adds domain-specific subtypes. See [How Domain Ontologies Work](/docs/explanation/how-domain-ontologies-work) for details.
+:::
+
 ## Key Features
 
-- **22 built-in domains** -- healthcare, financial services, real estate, manufacturing, scientific research, software engineering, and more. Each domain ships with a complete ontology, agent tools, demo scenarios, and fixture data.
-- **8 agent frameworks** -- PydanticAI, Claude Agent SDK, OpenAI Agents SDK, LangGraph, CrewAI, Strands, Google ADK, and Anthropic Tools. Pick the one you know, or try something new.
-- **Multi-turn conversations** -- every generated agent uses [neo4j-agent-memory](https://github.com/neo4j-labs/agent-memory) v0.1.0 for conversation persistence with automatic entity extraction and preference detection. Session history is stored in Neo4j and retrieved on each turn, so follow-up questions work naturally.
-- **Graph-native AI agents** -- every generated agent comes with Cypher-powered tools for querying entities, relationships, and decision traces in Neo4j. Tool calls stream in real-time with live progress indicators.
-- **Streaming chat** -- responses stream token-by-token via Server-Sent Events. Tool calls appear as a live timeline with spinner indicators as each executes. The graph visualization updates incrementally after each tool completes, not just at the end.
-- **Interactive graph visualization** -- the frontend includes an NVL-powered graph explorer with entity detail panel (click any node to see all properties and connections), a document browser with template filtering, and a decision trace viewer.
-- **Rich demo data** -- each domain ships with LLM-generated fixture data: 80-90 entities with realistic names, 25+ professional documents (discharge summaries, trade confirmations, lab reports), and 3-5 multi-step decision traces. All loaded into Neo4j via `make seed` and browsable in the frontend.
-- **Flexible Neo4j setup** -- connect to Neo4j Aura (free cloud tier with `.env` import), run locally with `@johnymontana/neo4j-local` (no Docker needed), use Docker Compose, or connect to any existing instance.
-- **SaaS data import** -- connect Gmail, Slack, Jira, GitHub, Notion, Salesforce, Linear, Google Workspace, and Claude Code to populate your graph with real data. The Claude Code connector imports your local AI coding session history with decision extraction and preference analysis -- no API keys required.
-- **Custom domains** -- describe your domain and let the tool generate a complete ontology, or write your own YAML definition from scratch.
-- **MCP server for Claude Desktop** -- optionally generate an MCP server config so Claude Desktop queries the same knowledge graph as your web app. Two interfaces, one context graph.
+- **22 built-in domains** -- Healthcare, financial services, real estate, manufacturing, scientific research, software engineering, and more. Each ships with a complete ontology, agent tools, demo scenarios, and fixture data.
+- **8 agent frameworks** -- PydanticAI, Claude Agent SDK, OpenAI Agents SDK, LangGraph, CrewAI, Strands, Google ADK, and Anthropic Tools.
+- **Multi-turn conversations** -- Every agent uses [neo4j-agent-memory](https://github.com/neo4j-labs/agent-memory) for conversation persistence with automatic entity extraction and preference detection.
+- **Graph-native AI agents** -- Cypher-powered tools for querying entities, relationships, and decision traces. Tool calls stream in real-time with live progress indicators.
+- **Streaming chat** -- Token-by-token responses via Server-Sent Events. Tool calls appear as a live timeline with spinner indicators. Graph visualization updates incrementally after each tool completes.
+- **Interactive graph visualization** -- NVL-powered graph explorer with entity detail panel, document browser with template filtering, and decision trace viewer.
+- **Rich demo data** -- LLM-generated fixture data per domain: 80-90 entities, 25+ professional documents, and 3-5 multi-step decision traces. Loaded via `make seed`.
+- **Flexible Neo4j setup** -- Neo4j Aura (free cloud), `@johnymontana/neo4j-local`, Docker Compose, or any existing instance.
+- **12 SaaS data connectors** -- GitHub, Slack, Jira, Notion, Gmail, Google Calendar, Salesforce, Linear, Google Workspace, Claude Code, Claude AI, and ChatGPT.
+- **Custom domains** -- Describe your domain in natural language to generate a complete ontology, or write your own YAML definition.
+- **MCP server for Claude Desktop** -- Optionally generate an MCP server config so Claude Desktop queries the same knowledge graph as your web app.
 
 ## Quick Install
 
@@ -35,25 +42,11 @@ uvx create-context-graph
 npx create-context-graph
 ```
 
-## Quick Start (Non-Interactive)
-
-Skip the wizard entirely by passing flags:
+See the **[Quick Start](/docs/quick-start)** for a complete walkthrough, or skip the wizard with flags:
 
 ```bash
-uvx create-context-graph my-app \
-  --domain healthcare \
-  --framework pydanticai \
-  --demo-data
-
-# Or scaffold, seed, and ingest in one step:
-uvx create-context-graph my-app \
-  --domain healthcare \
-  --framework pydanticai \
-  --demo \
-  --neo4j-uri neo4j://localhost:7687
+uvx create-context-graph my-app --domain healthcare --framework pydanticai --demo-data
 ```
-
-This creates a `my-app/` directory with a complete healthcare context graph application using PydanticAI as the agent framework, pre-loaded with demo data.
 
 ## See All Available Domains
 
@@ -63,31 +56,27 @@ uvx create-context-graph --list-domains
 
 ## Architecture
 
-```mermaid
-graph TB
-    CLI["create-context-graph CLI"] --> |"domain YAML + framework"| Engine["Jinja2 Template Engine"]
-    Engine --> Backend["FastAPI Backend"]
-    Engine --> Frontend["Next.js + Chakra UI Frontend"]
-    Engine --> Data["Fixture Data + Cypher Schema"]
+<!-- TODO: Export from architecture-overview.excalidraw and replace with final PNG -->
+![Architecture: generation pipeline (CLI → Jinja2 → backend + frontend + data) and runtime (frontend ↔ backend ↔ Neo4j)](/img/architecture-overview.png)
 
-    Backend --> Agent["AI Agent<br/>(8 frameworks)"]
-    Backend --> Client["Neo4j Client<br/>+ MemoryClient"]
-    Agent --> |"tool calls"| Client
-    Client --> |"Cypher queries"| Neo4j["Neo4j<br/>Knowledge Graph"]
+The top half shows **generation**: the CLI reads a domain ontology YAML and renders Jinja2 templates into a complete project (FastAPI backend, Next.js frontend, Cypher schema + fixture data). The bottom half shows the **running application**: the frontend streams chat responses via SSE, the backend agent executes Cypher tool calls against Neo4j, and the graph visualization updates incrementally as each tool completes.
 
-    Frontend --> Chat["Chat Interface<br/>(SSE streaming)"]
-    Frontend --> Graph["NVL Graph<br/>Visualization"]
-    Frontend --> Panels["Documents &<br/>Decision Traces"]
+## Reading Guide
 
-    Chat --> |"POST /chat/stream"| Backend
-    Graph --> |"GET /expand"| Backend
-```
+Choose your path based on what you want to do:
 
-The CLI reads a domain ontology YAML and renders Jinja2 templates into a complete project. The generated backend runs an AI agent with domain-specific Cypher tools. The frontend streams responses via SSE, updating the graph visualization as each tool completes.
+- **New to context graphs?** Start with [Why Context Graphs](/docs/explanation/why-context-graphs), then follow the [Quick Start](/docs/quick-start).
+- **Want to build your first app?** Follow the [First Context Graph App](/docs/tutorials/first-context-graph-app) tutorial (15-20 min).
+- **Importing real data?** See [Import SaaS Data](/docs/how-to/import-saas-data) or the connector tutorials ([Linear](/docs/tutorials/linear-context-graph), [Google Workspace](/docs/tutorials/google-workspace-decisions), [Claude Code](/docs/tutorials/claude-code-sessions)).
+- **Building a custom domain?** Read [How Domain Ontologies Work](/docs/explanation/how-domain-ontologies-work), then follow [Customizing Your Ontology](/docs/tutorials/customizing-domain-ontology).
+- **Comparing frameworks?** See the [Framework Comparison](/docs/reference/framework-comparison) or [Switch Frameworks](/docs/how-to/switch-frameworks).
 
 ## What's Next
 
-- **[Quick Start](./quick-start)** -- get a running app in under 5 minutes.
-- **[Your First Context Graph App](./tutorials/first-context-graph-app)** -- step-by-step tutorial to create, run, and explore a generated application.
-- **[Customizing Your Domain Ontology](./tutorials/customizing-domain-ontology)** -- learn how to modify entity types, relationships, and agent tools in your domain YAML.
-- **[Domain Catalog](./reference/domain-catalog)** -- browse all 22 built-in domains with entity types and sample questions.
+- **[Quick Start](/docs/quick-start)** -- get a running app in under 5 minutes.
+- **[Your First Context Graph App](/docs/tutorials/first-context-graph-app)** -- step-by-step tutorial to create, run, and explore a generated application.
+- **[Why Context Graphs](/docs/explanation/why-context-graphs)** -- understand the conceptual foundation behind graph-based agent memory.
+- **[Three Memory Types](/docs/explanation/three-memory-types)** -- how short-term, long-term, and reasoning memory work together.
+- **[Domain Catalog](/docs/reference/domain-catalog)** -- browse all 22 built-in domains with entity types and sample questions.
+- **[Import SaaS Data](/docs/how-to/import-saas-data)** -- connect your existing tools to populate the knowledge graph.
+- **[Switch Frameworks](/docs/how-to/switch-frameworks)** -- compare and switch between 8 agent frameworks.

@@ -8,16 +8,16 @@ sidebar_position: 4
 
 ## Comparison Table
 
-| Framework | LLM Provider | Streaming | Multi-turn | Async | Status |
-|---|---|---|---|---|---|
-| **PydanticAI** | Anthropic (configurable) | Full (text + tools) | Yes | Native async | Stable |
-| **Claude Agent SDK** | Anthropic | Full (text + tools) | Yes | Native async | Stable |
-| **OpenAI Agents SDK** | OpenAI | Full (text + tools) | Yes | Native async | Stable |
-| **LangGraph** | Anthropic (configurable) | Full (text + tools) | Yes | Native async | Stable |
-| **Anthropic Tools** | Anthropic | Full (text + tools) | Yes | Native async | Stable |
-| **Strands** | Anthropic | Tools only | Yes | Thread-bridged | Stable |
-| **CrewAI** | Anthropic | Tools only | Yes | Thread-bridged | Stable |
-| **Google ADK** | Google Gemini | Full (text + tools) | Yes | Native async | Requires Gemini API key |
+| Framework | LLM Provider | Streaming | Async | Performance Notes |
+|---|---|---|---|---|
+| **PydanticAI** | Anthropic (configurable) | Full (text + tools) | Native async | Fast startup, type-safe tool definitions. Low overhead. |
+| **Claude Agent SDK** | Anthropic | Full (text + tools) | Native async | Minimal abstraction over Anthropic API. Lowest latency to first token. |
+| **OpenAI Agents SDK** | OpenAI | Full (text + tools) | Native async | Requires `OPENAI_API_KEY`. Text-matching tools need specific search terms. |
+| **LangGraph** | Anthropic (configurable) | Full (text + tools) | Native async | Slightly higher startup (graph compilation). Rich observability hooks. |
+| **Anthropic Tools** | Anthropic | Full (text + tools) | Native async | No framework dependency. Direct API control over agentic loop. |
+| **Strands** | Anthropic | Tools only | Thread-bridged | Sync framework in worker thread. Text arrives at end, tools stream live. |
+| **CrewAI** | Anthropic | Tools only | Thread-bridged | Higher startup (multi-agent init). Text arrives at end. Needs `crewai[anthropic]`. |
+| **Google ADK** | Google Gemini | Full (text + tools) | Native async | Requires `GOOGLE_API_KEY`. Uses `nest_asyncio` for reentrant async. |
 
 ## Choosing a Framework
 

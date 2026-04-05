@@ -7,6 +7,28 @@ title: Why Context Graphs Need All Three Memory Types
 
 AI agents that interact with knowledge graphs need more than a vector store. They need three distinct kinds of memory -- short-term, long-term, and reasoning -- each serving a different purpose and stored in a different way. This page explains what each type is, why it matters, and how create-context-graph implements all three.
 
+## Quick Reference
+
+| Memory Type | Purpose | Stored As | Example | Retention |
+|-------------|---------|-----------|---------|-----------|
+| **Short-term** | Current conversation context | Message nodes per session | "The patient I asked about earlier" | Session-scoped |
+| **Long-term** | Persistent domain knowledge | POLE+O entity graph | People, organizations, events, relationships | Permanent |
+| **Reasoning** | Decision audit trail | DecisionTrace → TraceStep chains | "Why was this treatment recommended?" | Permanent |
+
+```mermaid
+graph LR
+    User["User Message"] --> STM["Short-Term Memory<br/>(Conversation History)"]
+    STM --> Agent["AI Agent"]
+    Agent --> LTM["Long-Term Memory<br/>(Knowledge Graph)"]
+    Agent --> RM["Reasoning Memory<br/>(Decision Traces)"]
+    LTM --> |"Cypher queries"| Neo4j["Neo4j"]
+    RM --> |"Trace steps"| Neo4j
+    STM --> |"Messages"| Neo4j
+```
+
+<!-- TODO: Export from memory-architecture.excalidraw and replace placeholder -->
+![Three memory types working together during a chat request](/img/memory-architecture.png)
+
 ## The Three Memory Types
 
 ### Short-Term Memory: What Just Happened

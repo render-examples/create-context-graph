@@ -88,3 +88,9 @@ make start
 
 - Free-tier Aura instances have limited resources — queries may take 2-5 seconds
 - For better performance, upgrade to a paid tier
+
+## Further Reading
+
+- [Use Docker](/docs/how-to/use-docker) -- alternative: run Neo4j locally via Docker
+- [Use Neo4j Local](/docs/how-to/use-neo4j-local) -- alternative: run Neo4j without Docker
+- [Quick Start](/docs/quick-start) -- get a full app running in under 5 minutes

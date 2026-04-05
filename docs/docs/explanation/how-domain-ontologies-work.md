@@ -42,7 +42,83 @@ When a domain YAML declares `inherits: _base`, the loader performs a merge:
 
 This means every domain automatically gets Person, Organization, Location, and Event nodes without redeclaring them, while retaining the freedom to override any base type with a domain-specific version.
 
+## Example: A Minimal Ontology Snippet
+
+Here is a simplified excerpt from the healthcare domain YAML to ground the abstract concepts:
+
+```yaml
+inherits: _base
+
+domain:
+  id: healthcare
+  name: Healthcare
+  description: Hospital and clinic management
+  tagline: "AI-powered healthcare intelligence"
+  emoji: "🏥"
+
+entity_types:
+  - label: Patient
+    pole_type: PERSON
+    subtype: patient
+    color: "#4CAF50"
+    icon: user
+    properties:
+      - name: name
+        type: string
+        required: true
+        unique: true
+      - name: date_of_birth
+        type: date
+      - name: blood_type
+        type: string
+        enum: ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"]
+
+  - label: Diagnosis
+    pole_type: OBJECT
+    subtype: medical
+    color: "#FF5722"
+    icon: activity
+    properties:
+      - name: name
+        type: string
+        required: true
+      - name: severity
+        type: string
+        enum: ["mild", "moderate", "severe", "critical"]
+
+relationships:
+  - type: DIAGNOSED_WITH
+    source: Patient
+    target: Diagnosis
+
+agent_tools:
+  - name: find_patient
+    description: Find a patient by name
+    cypher: "MATCH (p:Patient) WHERE p.name CONTAINS $name RETURN p"
+    parameters:
+      - name: name
+        type: string
+        description: Patient name to search for
+```
+
+This single YAML drives the entire generated application -- schema, models, agent tools, and visualization. See the [Ontology YAML Schema](/docs/reference/ontology-yaml-schema) for the complete specification.
+
+<!-- TODO: Export from ontology-pipeline.excalidraw and replace placeholder -->
+![How a domain YAML flows through Jinja2 templates to produce generated code](/img/ontology-pipeline.png)
+
 ## How the Ontology Drives Code Generation
+
+```mermaid
+graph LR
+    YAML["Domain YAML"] --> Loader["ontology.py<br/>Pydantic Validation"]
+    Base["_base.yaml"] --> Loader
+    Loader --> Context["Template Context"]
+    Context --> Schema["cypher/schema.cypher<br/>(constraints, indexes)"]
+    Context --> Models["backend/models.py<br/>(Pydantic classes)"]
+    Context --> Agent["backend/agent.py<br/>(framework tools)"]
+    Context --> Frontend["frontend/components<br/>(visualization config)"]
+    Context --> Data["data/fixtures.json<br/>(demo data)"]
+```
 
 The ontology YAML is loaded into a `DomainOntology` Pydantic model, which is then passed as context to every Jinja2 template. Here is how each section of the ontology influences the generated output:
 

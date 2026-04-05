@@ -14,9 +14,9 @@ const config: Config = {
   markdown: {
     mermaid: true,
   },
-  themes: ['@docusaurus/theme-mermaid'],
+  themes: ['@docusaurus/theme-mermaid', '@easyops-cn/docusaurus-search-local'],
 
-  url: 'https://create-context-graph.vercel.app',
+  url: 'https://create-context-graph.dev',
   baseUrl: '/',
 
   organizationName: 'neo4j-labs',
@@ -76,6 +76,11 @@ const config: Config = {
         },
       ],
     },
+    announcementBar: {
+      id: 'version_banner',
+      content: '📦 You are viewing docs for <b>create-context-graph v0.9.0</b>',
+      isCloseable: true,
+    },
     footer: {
       style: 'dark',
       links: [
@@ -83,8 +88,12 @@ const config: Config = {
           title: 'Documentation',
           items: [
             {label: 'Getting Started', to: '/docs/intro'},
+            {label: 'Quick Start', to: '/docs/quick-start'},
+            {label: 'Tutorials', to: '/docs/tutorials/first-context-graph-app'},
+            {label: 'How-To Guides', to: '/docs/how-to/import-saas-data'},
             {label: 'CLI Reference', to: '/docs/reference/cli-options'},
             {label: 'YAML Schema', to: '/docs/reference/ontology-yaml-schema'},
+            {label: 'Explanation', to: '/docs/explanation/why-context-graphs'},
           ],
         },
         {

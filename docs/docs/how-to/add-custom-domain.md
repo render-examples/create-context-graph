@@ -93,7 +93,7 @@ visualization:
   default_cypher: "MATCH (n) RETURN n LIMIT 50"
 ```
 
-See `src/create_context_graph/domains/` for complete examples. The `_base.yaml` file defines the inherited POLE+O entity types (Person, Organization, Location, Event, Object) that your domain will automatically include.
+See the [Ontology YAML Schema](/docs/reference/ontology-yaml-schema) for the complete specification with examples. The `_base.yaml` file defines the inherited POLE+O entity types (Person, Organization, Location, Event, Object) that your domain will automatically include. In the generated project, your ontology lives at `data/ontology.yaml`.
 
 ## Saving Custom Domains for Reuse
 

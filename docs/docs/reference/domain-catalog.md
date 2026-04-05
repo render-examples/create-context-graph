@@ -40,7 +40,7 @@ create-context-graph ships with **22 built-in domains**. Each domain includes a 
 
 **ID:** `agent-memory` | **Tagline:** AI-powered Agent Intelligence
 
-**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Agent`, `Conversation`, `Entity`, `Memory`, `ToolCall` (+1 more)
+**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Agent`, `Conversation`, `Entity`, `Memory`, `ToolCall`, `Session`
 
 **Sample question:** "What does agent Alpha remember about the user's project preferences?"
 
@@ -54,7 +54,7 @@ uvx create-context-graph --domain agent-memory --framework pydanticai --demo
 
 **ID:** `conservation` | **Tagline:** AI-powered Conservation Intelligence
 
-**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Site`, `Species`, `Program`, `Funding`, `Stakeholder` (+1 more)
+**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Site`, `Species`, `Program`, `Funding`, `Stakeholder`, `Monitoring`
 
 **Sample question:** "Show me all endangered species and the sites where they are protected"
 
@@ -68,7 +68,7 @@ uvx create-context-graph --domain conservation --framework pydanticai --demo
 
 **ID:** `data-journalism` | **Tagline:** AI-powered Investigative Intelligence
 
-**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Source`, `Story`, `Dataset`, `Claim`, `Correction` (+1 more)
+**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Source`, `Story`, `Dataset`, `Claim`, `Correction`, `Investigation`
 
 **Sample question:** "Show me all active investigations and their current status"
 
@@ -82,7 +82,7 @@ uvx create-context-graph --domain data-journalism --framework pydanticai --demo
 
 **ID:** `digital-twin` | **Tagline:** AI-powered Digital Twin Intelligence
 
-**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Asset`, `Sensor`, `Reading`, `Alert`, `MaintenanceRecord` (+1 more)
+**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Asset`, `Sensor`, `Reading`, `Alert`, `MaintenanceRecord`, `System`
 
 **Sample question:** "Show me all assets currently in degraded status"
 
@@ -110,7 +110,7 @@ uvx create-context-graph --domain financial-services --framework pydanticai --de
 
 **ID:** `gaming` | **Tagline:** AI-powered Game Intelligence
 
-**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Player`, `Character`, `Item`, `Quest`, `Guild` (+1 more)
+**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Player`, `Character`, `Item`, `Quest`, `Guild`, `Achievement`
 
 **Sample question:** "Show me the most active players in the NA region by play time"
 
@@ -124,7 +124,7 @@ uvx create-context-graph --domain gaming --framework pydanticai --demo
 
 **ID:** `genai-llm-ops` | **Tagline:** AI-powered ML Operations Intelligence
 
-**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Model`, `Experiment`, `Dataset`, `Prompt`, `Evaluation` (+1 more)
+**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Model`, `Experiment`, `Dataset`, `Prompt`, `Evaluation`, `Deployment`
 
 **Sample question:** "Show me all models currently in production and their evaluation scores"
 
@@ -138,7 +138,7 @@ uvx create-context-graph --domain genai-llm-ops --framework pydanticai --demo
 
 **ID:** `gis-cartography` | **Tagline:** AI-powered Geospatial Intelligence
 
-**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Feature`, `Layer`, `Survey`, `Coordinate`, `Boundary` (+1 more)
+**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Feature`, `Layer`, `Survey`, `Coordinate`, `Boundary`, `MapProject`
 
 **Sample question:** "Show me all surveys conducted in the Cedar Creek watershed"
 
@@ -152,7 +152,7 @@ uvx create-context-graph --domain gis-cartography --framework pydanticai --demo
 
 **ID:** `golf-sports` | **Tagline:** AI-powered Golf Intelligence
 
-**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Course`, `Player`, `Round`, `Tournament`, `Handicap` (+1 more)
+**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Course`, `Player`, `Round`, `Tournament`, `Handicap`, `Hole`
 
 **Sample question:** "Show me all rounds played by Tiger Woods this season"
 
@@ -166,7 +166,7 @@ uvx create-context-graph --domain golf-sports --framework pydanticai --demo
 
 **ID:** `healthcare` | **Tagline:** AI-powered Clinical Intelligence
 
-**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Patient`, `Provider`, `Diagnosis`, `Treatment`, `Encounter` (+2 more)
+**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Patient`, `Provider`, `Diagnosis`, `Treatment`, `Encounter`, `Facility`, `Medication`
 
 **Sample question:** "Show me all patients with a chronic diagnosis"
 
@@ -180,7 +180,7 @@ uvx create-context-graph --domain healthcare --framework pydanticai --demo
 
 **ID:** `hospitality` | **Tagline:** AI-powered Hospitality Intelligence
 
-**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Hotel`, `Room`, `Reservation`, `Guest`, `Service` (+1 more)
+**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Hotel`, `Room`, `Reservation`, `Guest`, `Service`, `Staff`
 
 **Sample question:** "Show me all platinum guests arriving this week"
 
@@ -194,7 +194,7 @@ uvx create-context-graph --domain hospitality --framework pydanticai --demo
 
 **ID:** `manufacturing` | **Tagline:** AI-powered Manufacturing Intelligence
 
-**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Machine`, `Part`, `WorkOrder`, `Supplier`, `QualityReport` (+1 more)
+**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Machine`, `Part`, `WorkOrder`, `Supplier`, `QualityReport`, `ProductionLine`
 
 **Sample question:** "Show me all active work orders sorted by priority"
 
@@ -208,7 +208,7 @@ uvx create-context-graph --domain manufacturing --framework pydanticai --demo
 
 **ID:** `oil-gas` | **Tagline:** AI-powered Energy Intelligence
 
-**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Well`, `Reservoir`, `Equipment`, `Inspection`, `Permit` (+1 more)
+**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Well`, `Reservoir`, `Equipment`, `Inspection`, `Permit`, `Formation`
 
 **Sample question:** "Show me all producing wells sorted by daily production rate"
 
@@ -222,7 +222,7 @@ uvx create-context-graph --domain oil-gas --framework pydanticai --demo
 
 **ID:** `personal-knowledge` | **Tagline:** AI-powered Personal Knowledge Graph
 
-**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Note`, `Contact`, `Project`, `Topic`, `Bookmark` (+1 more)
+**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Note`, `Contact`, `Project`, `Topic`, `Bookmark`, `JournalEntry`
 
 **Sample question:** "What notes have I written about machine learning this month?"
 
@@ -236,7 +236,7 @@ uvx create-context-graph --domain personal-knowledge --framework pydanticai --de
 
 **ID:** `product-management` | **Tagline:** AI-powered Product Intelligence
 
-**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Feature`, `Epic`, `UserPersona`, `Metric`, `Release` (+2 more)
+**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Feature`, `Epic`, `UserPersona`, `Metric`, `Release`, `Feedback`, `Objective`
 
 **Sample question:** "Show me all features planned for the Q2 release"
 
@@ -250,7 +250,7 @@ uvx create-context-graph --domain product-management --framework pydanticai --de
 
 **ID:** `real-estate` | **Tagline:** AI-powered Real Estate Intelligence
 
-**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Property`, `Listing`, `Agent`, `Transaction`, `Inspection` (+1 more)
+**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Property`, `Listing`, `Agent`, `Transaction`, `Inspection`, `Neighborhood`
 
 **Sample question:** "Find all active listings in the Downtown neighborhood under $500,000"
 
@@ -264,7 +264,7 @@ uvx create-context-graph --domain real-estate --framework pydanticai --demo
 
 **ID:** `retail-ecommerce` | **Tagline:** AI-powered Retail Intelligence
 
-**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Customer`, `Product`, `Order`, `Review`, `Campaign` (+1 more)
+**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Customer`, `Product`, `Order`, `Review`, `Campaign`, `Category`
 
 **Sample question:** "Show me the top 10 VIP customers by lifetime value"
 
@@ -278,7 +278,7 @@ uvx create-context-graph --domain retail-ecommerce --framework pydanticai --demo
 
 **ID:** `scientific-research` | **Tagline:** AI-powered Research Intelligence
 
-**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Researcher`, `Paper`, `Dataset`, `Experiment`, `Grant` (+1 more)
+**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Researcher`, `Paper`, `Dataset`, `Experiment`, `Grant`, `Institution`
 
 **Sample question:** "Find the most cited papers in computational biology from the last 3 years"
 
@@ -292,7 +292,7 @@ uvx create-context-graph --domain scientific-research --framework pydanticai --d
 
 **ID:** `software-engineering` | **Tagline:** AI-powered Software Intelligence
 
-**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Repository`, `Issue`, `PullRequest`, `Deployment`, `Service` (+1 more)
+**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Repository`, `Issue`, `PullRequest`, `Deployment`, `Service`, `Incident`
 
 **Sample question:** "Show me all open pull requests across our repositories"
 
@@ -306,7 +306,7 @@ uvx create-context-graph --domain software-engineering --framework pydanticai --
 
 **ID:** `trip-planning` | **Tagline:** AI-powered Travel Intelligence
 
-**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Destination`, `Hotel`, `Activity`, `Restaurant`, `Itinerary` (+1 more)
+**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Destination`, `Hotel`, `Activity`, `Restaurant`, `Itinerary`, `Review`
 
 **Sample question:** "Help me plan a 7-day trip to Japan for two people in spring"
 
@@ -320,7 +320,7 @@ uvx create-context-graph --domain trip-planning --framework pydanticai --demo
 
 **ID:** `vacation-industry` | **Tagline:** AI-powered Vacation Intelligence
 
-**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Resort`, `Booking`, `Guest`, `Activity`, `Season` (+1 more)
+**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Resort`, `Booking`, `Guest`, `Activity`, `Season`, `Package`
 
 **Sample question:** "Show me all bookings for the upcoming holiday season"
 
@@ -334,7 +334,7 @@ uvx create-context-graph --domain vacation-industry --framework pydanticai --dem
 
 **ID:** `wildlife-management` | **Tagline:** AI-powered Conservation Intelligence
 
-**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Species`, `Individual`, `Sighting`, `Habitat`, `Camera` (+1 more)
+**Entity types:** `Person`, `Organization`, `Location`, `Event`, `Object`, `Species`, `Individual`, `Sighting`, `Habitat`, `Camera`, `Threat`
 
 **Sample question:** "Show me all recent sightings of endangered species in the Serengeti habitat"
 

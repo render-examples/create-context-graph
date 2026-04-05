@@ -1,11 +1,40 @@
 ---
 sidebar_position: 4
-title: How Decision Traces Are Extracted
+title: How Decision Traces Work
 ---
 
-# How Decision Traces Are Extracted from Google Workspace
+# How Decision Traces Work
 
-Every organization's most valuable knowledge isn't in its documents -- it's in the spaces *between* documents: the comment thread where someone said "let's go with option B," the meeting where three people aligned on an approach, the email chain where a deadline was negotiated. This page explains how the Google Workspace connector extracts these collaborative signals as graph-connected decision traces.
+Decision traces capture the *why* behind choices -- not just what was decided, but who was involved, what alternatives were considered, and how the decision was reached. Different connectors extract decision traces from different signal sources. This page explains how two key connectors -- Google Workspace and Claude Code -- detect and extract decisions into graph-connected traces.
+
+```mermaid
+graph TB
+    subgraph Sources ["Signal Sources"]
+        GWS["Google Workspace<br/>(comments, meetings, email)"]
+        CC["Claude Code<br/>(corrections, errors, deliberation)"]
+        Fixture["Demo Fixtures<br/>(pre-generated traces)"]
+    end
+    subgraph Extraction ["Decision Extraction"]
+        GWSConn["GWS Connector<br/>(resolved thread → trace)"]
+        CCConn["Claude Code Connector<br/>(heuristic detection)"]
+        Gen["Data Generator<br/>(LLM-generated)"]
+    end
+    subgraph Graph ["Neo4j Graph"]
+        DT["DecisionTrace"] -->|HAS_STEP| S1["TraceStep 1"]
+        S1 --> S2["TraceStep 2"]
+        S2 --> S3["TraceStep 3"]
+    end
+    GWS --> GWSConn --> DT
+    CC --> CCConn --> DT
+    Fixture --> Gen --> DT
+```
+
+## Google Workspace
+
+Every organization's most valuable knowledge isn't in its documents -- it's in the spaces *between* documents: the comment thread where someone said "let's go with option B," the meeting where three people aligned on an approach, the email chain where a deadline was negotiated. This section explains how the Google Workspace connector extracts these collaborative signals as graph-connected decision traces.
+
+<!-- TODO: Export from decision-trace-structure.excalidraw and replace placeholder -->
+![Decision trace graph structure: DecisionTrace → TraceStep chain with properties](/img/decision-trace-structure.png)
 
 ## The Problem: The Missing "Why"
 
@@ -154,8 +183,91 @@ A vector-based RAG system can find the document that mentions "Redis" and return
 
 These are all **multi-hop graph traversals** that require structured relationships between nodes -- exactly what a context graph provides.
 
+## Claude Code
+
+When you work with Claude Code, decisions happen constantly -- you redirect the agent's approach, it deliberates between alternatives, errors lead to fixes, and dependency choices accumulate. The Claude Code connector detects these decision signals from your local session history and extracts them as graph-connected traces.
+
+Unlike Google Workspace decisions (which are collaborative and explicitly resolved), Claude Code decisions are **conversational and heuristic** -- the connector uses pattern matching and contextual analysis to identify decision points, assigning each a confidence score (0.0--1.0).
+
+### Four Decision Signals in Claude Code
+
+#### 1. User corrections
+
+When you redirect Claude's approach, the connector detects a decision. The original approach becomes a rejected alternative and your correction becomes the chosen one:
+
+```
+You: "Set up JWT authentication for the API"
+Claude: [implements JWT with refresh tokens]
+You: "No, use OAuth2 with PKCE instead"
+Claude: [switches to OAuth2 implementation]
+```
+
+This creates:
+```
+(:Session)-[:MADE_DECISION]->(:Decision {description: "Switch to OAuth2 with PKCE", category: "correction"})
+(:Decision)-[:CHOSE]->(:Alternative {description: "OAuth2 with PKCE"})
+(:Decision)-[:REJECTED]->(:Alternative {description: "JWT with refresh tokens"})
+```
+
+Confidence: **High (0.8-0.95)** -- explicit user redirection is a strong decision signal.
+
+#### 2. Deliberation markers
+
+When Claude discusses trade-offs between approaches, the connector captures the alternatives and reasoning:
+
+```
+Claude: "We could use FastAPI or Flask here. FastAPI gives us async support
+and automatic OpenAPI docs, while Flask is simpler and has more tutorials.
+Given your project already uses async, FastAPI is the better fit."
+```
+
+This creates a Decision node with two Alternatives, one marked as chosen based on the conclusion.
+
+Confidence: **Medium (0.5-0.75)** -- deliberation is detected heuristically from phrases like "we could," "the trade-off is," "alternatively."
+
+#### 3. Error-resolution cycles
+
+When a tool call fails and Claude fixes the problem, the error and resolution are linked as a decision:
+
+```
+Claude: [runs pytest → fails with ImportError]
+Claude: [edits requirements.txt to add missing package]
+Claude: [runs pytest → passes]
+```
+
+This creates:
+```
+(:ToolCall {isError: true})-[:ENCOUNTERED_ERROR]->(:Error)
+(:Decision {category: "error-fix"})-[:RESULTED_IN]->(:ToolCall)  # the fix
+```
+
+Confidence: **High (0.7-0.9)** -- the error-fix pattern is structurally clear.
+
+#### 4. Dependency changes
+
+Package install commands (`pip install`, `npm install`, `cargo add`, etc.) are captured as dependency decisions. When the same package appears across multiple sessions, it may also generate a Preference node.
+
+Confidence: **Medium (0.5-0.7)** -- dependency installs are captured but may be routine rather than deliberate choices.
+
+### Comparison: Google Workspace vs. Claude Code
+
+| Aspect | Google Workspace | Claude Code |
+|--------|-----------------|-------------|
+| **Signal source** | Comment threads, revisions, meetings, email | User corrections, deliberation, errors, installs |
+| **Participants** | Multiple people (collaborative) | User + Claude (conversational) |
+| **Confidence model** | High (explicit resolution flags) | Heuristic (0.0--1.0 scored) |
+| **Resolution signal** | Thread resolved flag | Correction or successful retry |
+| **Decision entity** | `DecisionThread` with replies | `Decision` with `Alternative` nodes |
+| **Unique strength** | Cross-person provenance | Reasoning chain reconstruction |
+
+### From Decisions to Preferences
+
+A distinctive feature of Claude Code decision extraction is that decisions **accumulate into preferences**. When you make the same choice across multiple sessions (e.g., always choosing pytest over unittest, always preferring single quotes), the connector detects this pattern and creates Preference nodes with increasing confidence scores. This is something Google Workspace cannot provide -- it captures group decisions, while Claude Code captures individual developer patterns over time.
+
 ## Further Reading
 
+- [Build a Developer Knowledge Graph from Claude Code Sessions](/docs/tutorials/claude-code-sessions) -- Step-by-step tutorial
+- [Claude Code Session Schema](/docs/reference/claude-code-schema) -- Complete entity and relationship reference
 - [Decision Traces from Google Workspace](/docs/tutorials/google-workspace-decisions) -- Step-by-step tutorial
 - [Import Data from SaaS Services](/docs/how-to/import-saas-data) -- Configuration reference
 - [Three Memory Types](/docs/explanation/three-memory-types) -- How decision traces fit into neo4j-agent-memory

@@ -329,6 +329,6 @@ This creates a unified graph where your Claude AI web conversations and Claude C
 ## Next steps
 
 - **Explore more domains:** Try importing into a `software-engineering` or `knowledge-management` domain for different agent tools and system prompts
-- **Switch frameworks:** Use `--framework claude-agent-sdk` or `--framework langgraph` for different agent capabilities. See [Switch Agent Frameworks](/docs/how-to/switch-agent-frameworks)
+- **Switch frameworks:** Use `--framework claude-agent-sdk` or `--framework langgraph` for different agent capabilities. See [Switch Agent Frameworks](/docs/how-to/switch-frameworks)
 - **Add more data sources:** Connect GitHub, Linear, or Slack data alongside your chat history. See [Import Data from SaaS Services](/docs/how-to/import-saas-data)
 - **Use Neo4j Aura:** Deploy your graph to the cloud with [Neo4j Aura](/docs/how-to/use-neo4j-aura)

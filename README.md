@@ -1,11 +1,15 @@
 # Create Context Graph
 
 [![Neo4j Labs](https://img.shields.io/badge/Neo4j_Labs-blue?logo=neo4j)](https://neo4j.com/labs/)
-[![Docs](https://img.shields.io/badge/docs-docusaurus-green)](https://create-context-graph.vercel.app/)
+[![Docs](https://img.shields.io/badge/docs-docusaurus-green)](https://create-context-graph.dev/)
 
 > **Neo4j Labs Project** — This project is part of [Neo4j Labs](https://neo4j.com/labs/). It is maintained by Neo4j staff and the community, but not officially supported. For help, use [GitHub Issues](https://github.com/neo4j-labs/create-context-graph/issues) or the [Neo4j Community Forum](https://community.neo4j.com/).
 
 Interactive CLI scaffolding tool that generates fully-functional, domain-specific context graph applications. Pick your industry domain, pick your agent framework, and get a complete full-stack app in under 5 minutes.
+
+<p align="center">
+  <img src="docs/static/img/app-three-panel.png" alt="Generated app: chat interface, graph visualization, and document browser" width="800" />
+</p>
 
 ```bash
 # Python
@@ -151,6 +155,10 @@ create-context-graph --list-domains
 
 ## SaaS Data Connectors
 
+<p align="center">
+  <img src="docs/static/img/connector-data-flow.png" alt="SaaS connector data flow into Neo4j knowledge graph" width="700" />
+</p>
+
 Import real data from your existing tools instead of (or in addition to) synthetic demo data:
 
 | Service | What's Imported | Auth |
@@ -202,6 +210,12 @@ All frameworks share the same FastAPI HTTP layer, Neo4j client, and frontend. On
 > **Note:** Conversation memory uses local sentence-transformers embeddings by default — no `OPENAI_API_KEY` required. If you set `OPENAI_API_KEY` in your `.env`, it will automatically upgrade to OpenAI embeddings.
 
 ## Generated Project Structure
+
+<p align="center">
+  <img src="docs/static/img/ontology-pipeline.png" alt="From domain YAML through Jinja2 templates to generated code" width="750" />
+</p>
+
+A single domain YAML drives the entire generated application — schema, models, agent tools, and visualization — through the Jinja2 template engine.
 
 ```
 my-app/
@@ -310,7 +324,15 @@ Options:
 
 ## Context Graph Architecture
 
+<p align="center">
+  <img src="docs/static/img/architecture-overview.png" alt="Architecture: generation pipeline and runtime components" width="800" />
+</p>
+
 Every generated app demonstrates the three-memory-type architecture from [neo4j-agent-memory](https://github.com/neo4j-labs/agent-memory):
+
+<p align="center">
+  <img src="docs/static/img/memory-architecture.png" alt="Three memory types: short-term, long-term, and reasoning memory in Neo4j" width="700" />
+</p>
 
 - **Short-term memory** — Conversation history and document content stored as messages
 - **Long-term memory** — Entity knowledge graph built on the POLE+O model (Person, Organization, Location, Event, Object)

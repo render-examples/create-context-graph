@@ -7,6 +7,9 @@ title: Import Data from SaaS Services
 
 Create Context Graph can pull data from SaaS services and map it into your Neo4j knowledge graph. This guide covers how to configure connectors during project scaffolding and how to re-import data afterward.
 
+<!-- TODO: Export from connector-data-flow.excalidraw and replace placeholder -->
+![SaaS connector data flow: from external services through connectors into Neo4j](/img/connector-data-flow.png)
+
 ## Available Connectors
 
 | Service | What It Imports | Auth Method |
@@ -196,45 +199,64 @@ These targets read credentials from the `.env` file in the project root.
 
 ## Connector Credential Setup
 
-### GitHub
+<details>
+<summary><strong>GitHub</strong> — Personal access token</summary>
 
 1. Go to **Settings > Developer settings > Personal access tokens > Tokens (classic)**.
 2. Generate a token with `repo`, `read:org`, and `read:user` scopes.
 3. Set `GITHUB_TOKEN` in `.env`.
 
-### Notion
+</details>
+
+<details>
+<summary><strong>Notion</strong> — Internal integration token</summary>
 
 1. Go to [notion.so/my-integrations](https://www.notion.so/my-integrations) and create an internal integration.
 2. Copy the **Internal Integration Secret**.
 3. Share the target pages/databases with your integration.
 4. Set `NOTION_TOKEN` in `.env`.
 
-### Jira
+</details>
+
+<details>
+<summary><strong>Jira</strong> — API token + Atlassian email</summary>
 
 1. Go to [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens) and create an API token.
 2. Set `JIRA_EMAIL`, `JIRA_API_TOKEN`, and `JIRA_BASE_URL` (e.g., `https://yourorg.atlassian.net`) in `.env`.
 
-### Slack
+</details>
+
+<details>
+<summary><strong>Slack</strong> — Bot OAuth token</summary>
 
 1. Create a Slack app at [api.slack.com/apps](https://api.slack.com/apps).
 2. Add bot token scopes: `channels:history`, `channels:read`, `users:read`, `reactions:read`.
 3. Install the app to your workspace and copy the **Bot User OAuth Token**.
 4. Set `SLACK_BOT_TOKEN` in `.env`.
 
-### Gmail / Google Calendar
+</details>
+
+<details>
+<summary><strong>Gmail / Google Calendar</strong> — Google OAuth 2.0</summary>
 
 1. Create a project in [Google Cloud Console](https://console.cloud.google.com/).
 2. Enable the Gmail API and/or Google Calendar API.
 3. Create OAuth 2.0 credentials (Desktop app type) and download the JSON file.
 4. Set `GOOGLE_CREDENTIALS_FILE` in `.env` pointing to the downloaded JSON.
 
-### Salesforce
+</details>
+
+<details>
+<summary><strong>Salesforce</strong> — OAuth 2.0 connected app</summary>
 
 1. In Salesforce Setup, go to **App Manager** and create a new Connected App.
 2. Enable OAuth and select scopes: `api`, `refresh_token`, `offline_access`.
 3. Set `SALESFORCE_CLIENT_ID`, `SALESFORCE_CLIENT_SECRET`, `SALESFORCE_USERNAME`, `SALESFORCE_PASSWORD`, and `SALESFORCE_SECURITY_TOKEN` in `.env`.
 
-### Google Workspace
+</details>
+
+<details>
+<summary><strong>Google Workspace</strong> — Google OAuth 2.0 (Drive, Activity, Calendar, Gmail)</summary>
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/) and create a project (or select an existing one).
 2. Navigate to **APIs & Services > Library** and enable: **Google Drive API**, **Drive Activity API**, and optionally **Google Calendar API** and **Gmail API**.
@@ -242,65 +264,66 @@ These targets read credentials from the `.env` file in the project root.
 4. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env`.
 5. Optionally set `GWS_FOLDER_ID` to a Drive folder ID to scope the import.
 
-The Google Workspace connector imports files, comment threads (with resolution detection), revision history, Drive Activity, and optionally Calendar events and Gmail thread metadata. Resolved comment threads are extracted as **decision traces** -- the question, deliberation, resolution, and participants are all captured as graph nodes. It also provides 10 decision-focused agent tools (`find_decisions`, `decision_context`, `who_decided`, `open_questions`, etc.).
+The connector imports files, comment threads (with resolution detection), revision history, Drive Activity, and optionally Calendar events and Gmail thread metadata. Resolved comment threads are extracted as **decision traces**. It also provides 10 decision-focused agent tools.
 
 See the [Decision Traces from Google Workspace](/docs/tutorials/google-workspace-decisions) tutorial for a complete walkthrough.
 
-### Linear
+</details>
+
+<details>
+<summary><strong>Linear</strong> — Personal API key</summary>
 
 1. Open **Linear Settings > Security & Access > API** (or navigate to `linear.app/settings/api`).
 2. Click **Create key** to generate a personal API key.
 3. Set `LINEAR_API_KEY` in `.env`.
 4. Optionally set `LINEAR_TEAM` to a team URL key (e.g., `ENG`) to limit the import to a single team.
 
-The Linear connector imports 12 entity types: issues, projects, cycles, teams, users, labels, workflow states, comments (with threading and resolution), project updates (with health status), project milestones, initiatives, and attachments. It also imports:
+The connector imports 12 entity types (issues, projects, cycles, teams, users, labels, workflow states, comments, project updates, milestones, initiatives, attachments), issue relations, threaded comments with resolution tracking, and decision traces from issue history. Validates team keys during authentication, retries on rate limits with exponential backoff. Uses only Python's built-in `urllib`.
 
-- **Issue relations** -- blocking, blocked-by, related, and duplicate links between issues
-- **Threaded comments** -- with reply hierarchy and resolution tracking (who resolved a discussion thread)
-- **Decision traces** -- issue history (state transitions, assignment changes, priority changes) is automatically transformed into decision traces with thought/action/observation chains
-- **Documents** -- issue descriptions, project update bodies, and Linear Docs are all imported as documents for semantic search
+See the [Build a Linear Context Graph](/docs/tutorials/linear-context-graph) tutorial for a complete walkthrough.
 
-The connector validates team keys during authentication — if you provide an invalid key, it lists the available team keys. It automatically retries on rate limits (HTTP 429) with exponential backoff, and logs warnings when comments or history entries exceed page limits.
+</details>
 
-No external Python package is required — the connector uses Python's built-in `urllib`.
-
-### Claude Code
+<details>
+<summary><strong>Claude Code</strong> — No setup required (local files)</summary>
 
 No setup required. The connector reads session JSONL files directly from `~/.claude/projects/` on your local machine.
 
-The connector:
-
-- **Parses session files** -- user/assistant messages, tool_use blocks (Read, Write, Edit, Bash, Grep, Glob, Agent), tool results, and errors
-- **Extracts decisions** -- user corrections, deliberation patterns, error-resolution cycles, and dependency changes are identified as decision traces
-- **Extracts preferences** -- explicit statements ("always use X") and behavioral patterns (frequently-installed packages) become Preference entities
-- **Redacts secrets** -- API keys, tokens, passwords, and connection strings are automatically replaced with `[REDACTED]` before storage
-- **Tracks files** -- every file read or written by Claude Code becomes a File entity with modification and read counts
-- Provides **8 session intelligence agent tools** (`search_sessions`, `decision_history`, `file_timeline`, `error_patterns`, `tool_usage_stats`, `my_preferences`, `project_overview`, `reasoning_trace`)
-
-No external Python packages are required -- the connector uses only Python's standard library.
+It parses session files, extracts decisions (user corrections, deliberation, error-resolution cycles, dependency changes), extracts preferences (explicit statements, behavioral patterns), redacts secrets, tracks files, and provides 8 session intelligence agent tools.
 
 See the [Build a Developer Knowledge Graph from Claude Code Sessions](/docs/tutorials/claude-code-sessions) tutorial for a complete walkthrough.
 
-### Claude AI (Chat History)
+</details>
 
-No setup required. Export your data from Claude AI:
+<details>
+<summary><strong>Claude AI</strong> — No setup required (export file)</summary>
+
+Export your data from Claude AI:
 
 1. Open [claude.ai](https://claude.ai) and go to **Settings > Account > Export Data**.
 2. Confirm the export. You'll receive an email with a download link.
 3. Download the `.zip` file and pass it to the CLI with `--import-type claude-ai --import-file <path>`.
 
-The connector reads `conversations.jsonl` from the zip and extracts Conversation, Message, and Document entities. No external packages required.
-
 See the [Import Your AI Chat History](/docs/tutorials/import-chat-history) tutorial for a complete walkthrough.
 
-### ChatGPT (Chat History)
+</details>
 
-No setup required. Export your data from ChatGPT:
+<details>
+<summary><strong>ChatGPT</strong> — No setup required (export file)</summary>
+
+Export your data from ChatGPT:
 
 1. Open [chatgpt.com](https://chatgpt.com) and go to **Settings > Data Controls > Export data**.
 2. Confirm the export. You'll receive an email with a download link.
 3. Download the `.zip` file and pass it to the CLI with `--import-type chatgpt --import-file <path>`.
 
-The connector reads `conversations.json` from the zip, walks the tree-structured message mapping, and extracts Conversation, Message, and Document entities. No external packages required.
-
 See the [Import Your AI Chat History](/docs/tutorials/import-chat-history) tutorial for a complete walkthrough.
+
+</details>
+
+## Further Reading
+
+- [CLI Options](/docs/reference/cli-options) -- all connector-related flags
+- [Google Workspace Schema](/docs/reference/google-workspace-schema) -- complete entity and relationship reference
+- [Claude Code Schema](/docs/reference/claude-code-schema) -- complete entity and relationship reference
+- [Chat Import Schema](/docs/reference/chat-import-schema) -- Claude AI and ChatGPT graph schema

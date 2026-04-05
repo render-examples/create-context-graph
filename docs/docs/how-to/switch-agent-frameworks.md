@@ -80,3 +80,9 @@ The generated `backend/pyproject.toml` includes only the dependencies needed for
 - `google-adk` adds `google-adk`, `google-generativeai`
 
 All frameworks share common dependencies: `fastapi`, `uvicorn`, `neo4j`, `pydantic`, and `python-dotenv`.
+
+## Further Reading
+
+- [Framework Comparison](/docs/reference/framework-comparison) -- detailed comparison table with performance notes
+- [CLI Options](/docs/reference/cli-options) -- all `--framework` and API key flags
+- [Generated Project Structure](/docs/reference/generated-project-structure) -- what each file in the generated project does

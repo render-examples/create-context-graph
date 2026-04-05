@@ -68,7 +68,8 @@ my-app/
     └── documents/                    # Generated synthetic documents
 ```
 
-## Backend
+<details>
+<summary><strong>Backend</strong> — FastAPI + AI agent + Neo4j client</summary>
 
 ### `app/main.py`
 
@@ -159,7 +160,11 @@ make seed
 # or: cd backend && python scripts/generate_data.py
 ```
 
-## Frontend
+
+</details>
+
+<details>
+<summary><strong>Frontend</strong> — Next.js + Chakra UI v3 + NVL</summary>
 
 ### `app/page.tsx`
 
@@ -191,7 +196,11 @@ Browsable document panel with template type filter badges (e.g., Discharge Summa
 
 Chakra UI v3 provider component that wraps the application with the custom theme and color mode configuration.
 
-## Cypher
+
+</details>
+
+<details>
+<summary><strong>Cypher</strong> — Schema constraints + GDS projections</summary>
 
 ### `schema.cypher`
 
@@ -213,7 +222,11 @@ FOR (n:Account) ON (n.name);
 
 Graph Data Science projection queries for running algorithms on domain-specific subgraphs.
 
-## Data
+
+</details>
+
+<details>
+<summary><strong>Data</strong> — Ontology, fixtures, and documents</summary>
 
 ### `ontology.yaml` and `_base.yaml`
 
@@ -240,6 +253,9 @@ Generated demo data in a structured format:
   ]
 }
 ```
+
+
+</details>
 
 ## Configuration Files
 

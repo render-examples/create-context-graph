@@ -245,17 +245,39 @@ enum: ["true", "false"]
 enum: [true, false]
 ```
 
-## Regenerating Data After Changes
+## Validating Your Changes
 
-After modifying your ontology, regenerate the fixture data so it reflects your new schema:
+Before regenerating data, verify that your YAML is well-formed:
 
 ```bash
-# From your project directory, regenerate with LLM-powered data
-cd my-app
-python backend/scripts/generate_data.py --anthropic-api-key YOUR_KEY
+# Preview the project config without creating files
+uvx create-context-graph my-test \
+  --domain healthcare \
+  --framework pydanticai \
+  --dry-run
+```
 
-# Or reseed Neo4j with updated fixtures
+If there are YAML syntax errors or missing required fields, the CLI will report them.
+
+## Regenerating Data After Changes
+
+After modifying your ontology, reseed Neo4j so the data reflects your new schema:
+
+```bash
+# From your project directory
+cd my-app
+
+# Reset and reseed with the updated ontology
+make reset
 make seed
 ```
 
-If you do not have an API key, the generator falls back to placeholder data using `{Label} {N}` naming (e.g., "InsurancePlan 1", "InsurancePlan 2").
+To generate LLM-powered realistic data instead of static placeholders:
+
+```bash
+cd my-app/backend
+python scripts/generate_data.py --anthropic-api-key YOUR_KEY
+make seed
+```
+
+If you do not have an API key, `make seed` uses the static fallback data with domain-specific name pools.
