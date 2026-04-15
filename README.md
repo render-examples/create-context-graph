@@ -424,38 +424,6 @@ The smoke-test CI job is gated behind a `SMOKE_TESTS_ENABLED` repository variabl
 
 The smoke-test job uses `fail-fast: false` so one framework failure doesn't block the others, and it only runs after the unit test job passes.
 
-## Publishing
-
-### PyPI (Python)
-
-```bash
-# Build
-uv build
-
-# Publish (requires PyPI account + API token)
-uv publish
-# Or: twine upload dist/*
-```
-
-After publishing, users can install with:
-```bash
-uvx create-context-graph       # Ephemeral (recommended)
-pip install create-context-graph   # Permanent install
-```
-
-### npm (Node.js wrapper)
-
-```bash
-cd npm-wrapper
-
-# Publish (requires npm account + auth)
-npm publish --access public
-```
-
-After publishing, users can run with:
-```bash
-npx create-context-graph
-```
 
 The npm package is a thin wrapper that delegates to the Python CLI via `uvx`, `pipx`, or `python3 -m`. It requires Python 3.11+ to be installed.
 
@@ -471,13 +439,10 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-This triggers two GitHub Actions workflows:
-- **publish-pypi.yml** — Builds and publishes to PyPI (uses trusted publishing / OIDC)
-- **publish-npm.yml** — Publishes the npm wrapper to npmjs.com
-
-**Setup required:**
-- **PyPI:** Configure [trusted publishing](https://docs.pypi.org/trusted-publishers/) for this repo, or set a `PYPI_API_TOKEN` secret
-- **npm:** Set an `NPM_TOKEN` secret in the repository settings
+This triggers a GitHub Actions workflow, `release.yml` with jobs:
+- **publish-pypi** — Builds and publishes to PyPI
+- **publish-npm** — Publishes the npm wrapper to npmjs.com
+Both use trusted publishing/OIDC.
 
 ### Version Bumping
 
@@ -485,6 +450,8 @@ Both packages must use the same version. Update in two places:
 
 1. `pyproject.toml` → `version = "X.Y.Z"`
 2. `npm-wrapper/package.json` → `"version": "X.Y.Z"`
+
+Note: a job called `validate-version-consistency` in `release.yml` ensures that the correct versions exist in both places.
 
 ## License
 
