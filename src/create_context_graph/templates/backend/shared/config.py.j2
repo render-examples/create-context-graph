@@ -21,6 +21,20 @@ class Settings(BaseSettings):
     linear_team: str = ""
 {% endif %}
 
+{% if 'google-workspace' in saas_connectors %}
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    gws_folder_id: str = ""
+{% endif %}
+
+{% if 'claude-code' in saas_connectors %}
+    claude_code_scope: str = "current"
+    claude_code_since: str = ""
+    claude_code_max_sessions: int = 0
+    claude_code_content_mode: str = "truncated"
+    claude_code_base_path: str = ""
+{% endif %}
+
     model_config = {"env_file": "../.env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 

@@ -743,6 +743,86 @@ class TestClaudeCodeConnectorCLI:
         assert "file_timeline" in agent_py
         assert "my_preferences" in agent_py
 
+    def test_claude_code_config_settings_fields(self, runner, tmp_path):
+        """Generated config.py should have claude_code_* Settings fields."""
+        out = tmp_path / "cc-config"
+        result = runner.invoke(main, [
+            "cc-config",
+            "--domain", "software-engineering",
+            "--framework", "pydanticai",
+            "--connector", "claude-code",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        config_py = (out / "backend" / "app" / "config.py").read_text()
+        assert "claude_code_scope" in config_py
+        assert "claude_code_max_sessions" in config_py
+        assert "claude_code_content_mode" in config_py
+        assert "claude_code_base_path" in config_py
+
+    def test_claude_code_import_data_dict_access(self, runner, tmp_path):
+        """Generated import_data.py should use dict access, not attribute access."""
+        out = tmp_path / "cc-dict"
+        result = runner.invoke(main, [
+            "cc-dict",
+            "--domain", "software-engineering",
+            "--framework", "pydanticai",
+            "--connector", "claude-code",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        import_data = (out / "backend" / "scripts" / "import_data.py").read_text()
+        assert 'data["entities"]' in import_data
+        assert "data.entities" not in import_data
+
+    def test_claude_code_connector_entity_types(self, runner, tmp_path):
+        """Generated connector should extract all entity types including Decision/Preference."""
+        out = tmp_path / "cc-entities"
+        result = runner.invoke(main, [
+            "cc-entities",
+            "--domain", "software-engineering",
+            "--framework", "pydanticai",
+            "--connector", "claude-code",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        connector = (out / "backend" / "app" / "connectors" / "claude_code_connector.py").read_text()
+        for entity in ["GitBranch", "Error", "Decision", "Preference", "Alternative"]:
+            assert entity in connector, f"Missing entity type: {entity}"
+        for rel in ["ON_BRANCH", "ENCOUNTERED_ERROR", "MADE_DECISION", "CHOSE", "REJECTED",
+                     "NEXT", "PRECEDED_BY", "USED_TOOL", "EXPRESSES_PREFERENCE"]:
+            assert rel in connector, f"Missing relationship type: {rel}"
+
+    def test_claude_code_connector_has_redaction(self, runner, tmp_path):
+        """Generated connector should include secret redaction."""
+        out = tmp_path / "cc-redact"
+        result = runner.invoke(main, [
+            "cc-redact",
+            "--domain", "software-engineering",
+            "--framework", "pydanticai",
+            "--connector", "claude-code",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        connector = (out / "backend" / "app" / "connectors" / "claude_code_connector.py").read_text()
+        assert "REDACTED" in connector
+        assert "_SECRET_PATTERNS" in connector
+
+    def test_claude_code_scenarios_override(self, runner, tmp_path):
+        """Claude Code connector should replace generic SE scenarios with session-specific ones."""
+        out = tmp_path / "cc-scenarios"
+        result = runner.invoke(main, [
+            "cc-scenarios",
+            "--domain", "software-engineering",
+            "--framework", "pydanticai",
+            "--connector", "claude-code",
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0, result.output
+        frontend_config = (out / "frontend" / "lib" / "config.ts").read_text()
+        assert "Session Intelligence" in frontend_config
+        assert "pull requests" not in frontend_config.lower()
+
     def test_with_mcp_flag(self, runner, tmp_path):
         """Verify --with-mcp generates MCP config files."""
         out = tmp_path / "my-app"

@@ -74,9 +74,9 @@
   font-family: 'Syne', sans-serif;
   font-size: 1.1rem;
   font-weight: 700;
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(99, 102, 241, 0.25);
   background: var(--ifm-background-color, #1a1a2e);
-  color: var(--color-terminal-gray, #9CA3AF);
+  color: var(--ifm-color-emphasis-700, #6B7280);
   transition: border-color 0.4s, color 0.4s, background 0.4s;
 }
 
@@ -88,8 +88,8 @@
 
 [data-theme="light"] .stepNumber {
   background: var(--ifm-background-color, #ffffff);
-  border-color: rgba(0, 0, 0, 0.1);
-  color: rgba(0, 0, 0, 0.3);
+  border-color: rgba(99, 102, 241, 0.2);
+  color: rgba(0, 0, 0, 0.5);
 }
 
 [data-theme="light"] .stepNumberActive {

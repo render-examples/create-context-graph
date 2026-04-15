@@ -94,22 +94,22 @@ def main():
         }))
 {% endraw %}{% elif conn == 'google-workspace' %}{% raw %}
     connectors.append(("Google Workspace", GoogleWorkspaceConnector(), {
-        "client_id": getattr(settings, "google_client_id", "") or "",
-        "client_secret": getattr(settings, "google_client_secret", "") or "",
-        "folder_id": getattr(settings, "gws_folder_id", "") or "",
+        "client_id": settings.google_client_id or "",
+        "client_secret": settings.google_client_secret or "",
+        "folder_id": settings.gws_folder_id or "",
     }))
 {% endraw %}{% elif conn == 'claude-code' %}{% raw %}
-    # Claude Code connector reads local files — no credentials needed
     connectors.append(("Claude Code", ClaudeCodeConnector(), {
-        "scope": getattr(settings, "claude_code_scope", "current"),
-        "since": getattr(settings, "claude_code_since", None),
-        "max_sessions": getattr(settings, "claude_code_max_sessions", None),
-        "content_mode": getattr(settings, "claude_code_content_mode", None),
-        "base_path": getattr(settings, "claude_code_base_path", None),
+        "scope": settings.claude_code_scope,
+        "since": settings.claude_code_since or None,
+        "max_sessions": settings.claude_code_max_sessions or None,
+        "content_mode": settings.claude_code_content_mode or None,
+        "base_path": settings.claude_code_base_path or None,
     }))
 {% endraw %}{% endif %}
 {% endfor %}
 {% raw %}
+    failed = 0
     for name, connector, creds in connectors:
         try:
             print(f"Connecting to {name}...")
@@ -117,15 +117,20 @@ def main():
             print(f"Fetching data from {name}...")
             data = connector.fetch()
 
-            for label, items in data.entities.items():
+            for label, items in data["entities"].items():
                 all_entities.setdefault(label, []).extend(items)
-            all_relationships.extend(data.relationships)
-            all_documents.extend(data.documents)
+            all_relationships.extend(data["relationships"])
+            all_documents.extend(data["documents"])
 
-            entity_count = sum(len(v) for v in data.entities.values())
-            print(f"  ✓ {name}: {entity_count} entities, {len(data.documents)} documents")
+            entity_count = sum(len(v) for v in data["entities"].values())
+            print(f"  + {name}: {entity_count} entities, {len(data['documents'])} documents")
         except Exception as e:
-            print(f"  ⚠ {name}: {e}")
+            print(f"  ! {name}: {e}", file=sys.stderr)
+            failed += 1
+
+    if not all_entities and not all_relationships:
+        print("\nNo data collected. fixtures.json not modified.", file=sys.stderr)
+        sys.exit(1)
 
     # Write results
     result = {

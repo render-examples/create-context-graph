@@ -57,6 +57,20 @@
   padding: 0 2rem;
 }
 
+.catalogLink {
+  display: block;
+  text-align: center;
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ifm-color-primary);
+  text-decoration: none;
+}
+
+.catalogLink:hover {
+  text-decoration: underline;
+}
+
 .cardWrapper {
   flex-shrink: 0;
   width: 280px;

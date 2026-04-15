@@ -17,9 +17,111 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Tool categories for file tracking.
 _WRITE_TOOLS = {"Write", "Edit", "NotebookEdit"}
 _READ_TOOLS = {"Read", "Grep", "Glob"}
+_FILE_TOOLS = _WRITE_TOOLS | _READ_TOOLS
+
+_EXT_TO_LANG: dict[str, str] = {
+    "py": "python", "js": "javascript", "ts": "typescript", "tsx": "typescript",
+    "jsx": "javascript", "rs": "rust", "go": "go", "java": "java", "rb": "ruby",
+    "cpp": "cpp", "c": "c", "h": "c", "hpp": "cpp", "cs": "csharp", "kt": "kotlin",
+    "swift": "swift", "sh": "shell", "bash": "shell", "zsh": "shell",
+    "yml": "yaml", "yaml": "yaml", "json": "json", "toml": "toml", "xml": "xml",
+    "html": "html", "css": "css", "scss": "scss", "sql": "sql", "md": "markdown",
+    "graphql": "graphql", "proto": "protobuf", "dockerfile": "dockerfile",
+}
+
+_RERUN_RE = re.compile(r"\s*\[rerun:\s*b\d+\]\s*$")
+
+_SECRET_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"sk-ant-[A-Za-z0-9_-]{20,}"), "[REDACTED]"),
+    (re.compile(r"sk-proj-[A-Za-z0-9_-]{20,}"), "[REDACTED]"),
+    (re.compile(r"sk-[A-Za-z0-9]{20,}"), "[REDACTED]"),
+    (re.compile(r"gh[ps]_[A-Za-z0-9]{36,}"), "[REDACTED]"),
+    (re.compile(r"gho_[A-Za-z0-9]{36,}"), "[REDACTED]"),
+    (re.compile(r"github_pat_[A-Za-z0-9_]{22,}"), "[REDACTED]"),
+    (re.compile(r"xox[bpras]-[A-Za-z0-9-]{10,}"), "[REDACTED]"),
+    (re.compile(r"AKIA[0-9A-Z]{16}"), "[REDACTED]"),
+    (re.compile(r"Bearer\s+[A-Za-z0-9._-]{20,}"), "Bearer [REDACTED]"),
+    (re.compile(
+        r"(?i)(api[_-]?key|api[_-]?secret|secret[_-]?key|access[_-]?token|auth[_-]?token)"
+        r"""[\s]*[=:]\s*["']?[A-Za-z0-9._/+-]{16,}["']?"""
+    ), r"\1=[REDACTED]"),
+    (re.compile(
+        r"(?i)(password|passwd|pwd)"
+        r"""[\s]*[=:]\s*["']?[^\s"']{4,}["']?"""
+    ), r"\1=[REDACTED]"),
+    (re.compile(
+        r"(?i)(mysql|postgres|postgresql|mongodb|redis|amqp|neo4j)://"
+        r"[^:]+:[^@]+@"
+    ), r"\1://[REDACTED]@"),
+]
+
+_CORRECTION_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"\bno[,.]?\s+(instead|don'?t|do not|use|try|change|switch)", re.I),
+    re.compile(r"\bactually[,.]?\s+(let'?s|use|try|change|I want|we should)", re.I),
+    re.compile(r"\bthat'?s not (what|right|correct)", re.I),
+    re.compile(r"\brevert\b", re.I),
+    re.compile(r"\bundo\b", re.I),
+    re.compile(r"\bchange it to\b", re.I),
+    re.compile(r"\bdon'?t do that\b", re.I),
+    re.compile(r"\bnot that\b", re.I),
+]
+
+_PREFERENCE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"\balways\s+use\s+(.{3,60})", re.I), "coding_style"),
+    (re.compile(r"\bnever\s+use\s+(.{3,60})", re.I), "coding_style"),
+    (re.compile(r"\bprefer\s+(.{3,60})\s+over\s+(.{3,60})", re.I), "framework_choice"),
+    (re.compile(r"\bdon'?t\s+use\s+(.{3,60})", re.I), "coding_style"),
+    (re.compile(r"\buse\s+(.{3,40})\s+instead\s+of\s+(.{3,40})", re.I), "framework_choice"),
+    (re.compile(r"\bmake\s+sure\s+to\s+(.{3,60})", re.I), "coding_style"),
+    (re.compile(r"\bI\s+prefer\s+(.{3,60})", re.I), "coding_style"),
+    (re.compile(r"\bwe\s+should\s+always\s+(.{3,60})", re.I), "coding_style"),
+    (re.compile(r"\bI\s+like\s+(?:to\s+)?(.{3,60})", re.I), "coding_style"),
+    (re.compile(r"\buse\s+(ruff|black|prettier|eslint|flake8|mypy)\b", re.I), "tool_configuration"),
+    (re.compile(r"\buse\s+(pytest|jest|vitest|mocha)\b", re.I), "testing_approach"),
+    (re.compile(r"\buse\s+(snake_case|camelCase|PascalCase)\b", re.I), "naming_convention"),
+]
+
+
+def _redact(text: str) -> str:
+    if not text:
+        return text
+    result = text
+    for pattern, replacement in _SECRET_PATTERNS:
+        result = pattern.sub(replacement, result)
+    return result
+
+
+def _clean(text: str) -> str:
+    return _RERUN_RE.sub("", _redact(text))
+
+
+def _short_hash(text: str) -> str:
+    return hashlib.md5(text.encode()).hexdigest()[:10]
+
+
+def _detect_language(file_path: str) -> str:
+    basename = os.path.basename(file_path).lower()
+    if basename == "dockerfile":
+        return "dockerfile"
+    if basename == "makefile":
+        return "makefile"
+    ext = os.path.splitext(file_path)[1].lstrip(".").lower()
+    return _EXT_TO_LANG.get(ext, ext or "unknown")
+
+
+def _is_valid_path(path: str) -> bool:
+    if not path or len(path) < 2:
+        return False
+    if path.startswith("/") or path.startswith("~") or "/" in path:
+        try:
+            int(path)
+            return False
+        except ValueError:
+            pass
+        return True
+    return False
 
 
 class ClaudeCodeConnector:
@@ -38,12 +140,12 @@ class ClaudeCodeConnector:
 
     def authenticate(self, credentials: dict[str, str]) -> None:
         """Parse configuration from credentials dict."""
-        base = credentials.get("base_path", "")
+        base = credentials.get("base_path") or ""
         self._base_path = Path(base).expanduser() if base else None
-        self._scope = credentials.get("scope", "current")
-        self._content_mode = credentials.get("content_mode", "truncated")
-        self._since = credentials.get("since", "")
-        self._max_sessions = int(credentials.get("max_sessions", "0"))
+        self._scope = credentials.get("scope") or "current"
+        self._content_mode = credentials.get("content_mode") or "truncated"
+        self._since = credentials.get("since") or ""
+        self._max_sessions = int(credentials.get("max_sessions") or 0)
 
     def fetch(self, **kwargs: Any) -> dict[str, Any]:
         """Parse sessions and return entities, relationships, documents."""
@@ -56,6 +158,8 @@ class ClaudeCodeConnector:
         relationships: list[dict] = []
         documents: list[dict] = []
         seen_files: dict[str, dict] = {}
+        seen_branches: dict[str, dict] = {}
+        all_parsed_sessions: list[dict] = []
 
         for project_dir in sorted(base.iterdir()):
             if not project_dir.is_dir():
@@ -71,21 +175,26 @@ class ClaudeCodeConnector:
                 "sessionCount": len(sessions),
             })
 
+            session_count = 0
             for jsonl_path in sorted(sessions, key=lambda p: p.stat().st_mtime, reverse=True):
+                if self._max_sessions and session_count >= self._max_sessions:
+                    break
+                session_count += 1
+
                 session_id = jsonl_path.stem
                 messages, tool_calls, meta = self._parse_session(jsonl_path)
 
-                # Use session_id as the unique merge key to avoid collisions
-                # when multiple sessions share the same opening prompt.
                 session_name = f"Session:{session_id}"
                 first_prompt = meta.get("first_prompt", "")
+                git_branch = meta.get("git_branch", "")
+
                 entities.setdefault("Session", []).append({
                     "name": session_name,
                     "sessionId": session_id,
-                    "firstPrompt": first_prompt[:200] if first_prompt else "",
+                    "firstPrompt": _clean(first_prompt[:200]) if first_prompt else "",
                     "startedAt": meta.get("first_timestamp", ""),
                     "endedAt": meta.get("last_timestamp", ""),
-                    "branch": meta.get("git_branch", ""),
+                    "branch": git_branch,
                     "messageCount": len(messages),
                 })
 
@@ -97,13 +206,29 @@ class ClaudeCodeConnector:
                     "target_label": "Session",
                 })
 
-                # Build message and tool call entities
+                # GitBranch entity
+                if git_branch and git_branch not in seen_branches:
+                    seen_branches[git_branch] = {
+                        "name": git_branch,
+                        "project": decoded_path,
+                    }
+                if git_branch:
+                    relationships.append({
+                        "type": "ON_BRANCH",
+                        "source_name": session_name,
+                        "source_label": "Session",
+                        "target_name": git_branch,
+                        "target_label": "GitBranch",
+                    })
+
+                # Message entities with NEXT sequencing
+                prev_msg_name = None
                 for msg in messages:
                     msg_name = f"msg-{msg['uuid'][:12]}"
                     entities.setdefault("Message", []).append({
                         "name": msg_name,
                         "role": msg["role"],
-                        "content": msg["content"],
+                        "content": _clean(msg["content"]),
                         "timestamp": msg["timestamp"],
                     })
                     relationships.append({
@@ -113,45 +238,117 @@ class ClaudeCodeConnector:
                         "target_name": msg_name,
                         "target_label": "Message",
                     })
+                    if prev_msg_name:
+                        relationships.append({
+                            "type": "NEXT",
+                            "source_name": prev_msg_name,
+                            "source_label": "Message",
+                            "target_name": msg_name,
+                            "target_label": "Message",
+                        })
+                    prev_msg_name = msg_name
 
+                # ToolCall entities with PRECEDED_BY sequencing
+                prev_tc_name = None
                 for tc in tool_calls:
                     summary = self._summarize_input(tc["tool_name"], tc.get("input", {}))
                     tc_name = f"{tc['tool_name']}: {summary[:60]}" if summary else tc["tool_name"]
+                    is_error = tc.get("is_error", False)
+
                     entities.setdefault("ToolCall", []).append({
                         "name": tc_name,
                         "toolName": tc["tool_name"],
-                        "input": summary,
-                        "isError": tc.get("is_error", False),
+                        "input": _clean(summary),
+                        "isError": is_error,
                         "timestamp": tc["timestamp"],
                     })
 
-                    # File relationships
-                    file_path = tc.get("input", {}).get("file_path", "")
-                    if file_path:
-                        if file_path not in seen_files:
-                            ext = os.path.splitext(file_path)[1].lstrip(".")
-                            seen_files[file_path] = {
-                                "name": file_path,
-                                "path": file_path,
-                                "language": ext,
-                            }
-                        rel_type = "MODIFIED_FILE" if tc["tool_name"] in _WRITE_TOOLS else "READ_FILE"
+                    # USED_TOOL from parent message
+                    if tc.get("parent_msg_name"):
                         relationships.append({
-                            "type": rel_type,
+                            "type": "USED_TOOL",
+                            "source_name": tc["parent_msg_name"],
+                            "source_label": "Message",
+                            "target_name": tc_name,
+                            "target_label": "ToolCall",
+                        })
+
+                    if prev_tc_name:
+                        relationships.append({
+                            "type": "PRECEDED_BY",
                             "source_name": tc_name,
                             "source_label": "ToolCall",
-                            "target_name": file_path,
-                            "target_label": "File",
+                            "target_name": prev_tc_name,
+                            "target_label": "ToolCall",
+                        })
+                    prev_tc_name = tc_name
+
+                    # File relationships — only from file-bearing tools
+                    if tc["tool_name"] in _FILE_TOOLS:
+                        file_path = tc.get("input", {}).get("file_path", "")
+                        if file_path and _is_valid_path(file_path):
+                            if file_path not in seen_files:
+                                seen_files[file_path] = {
+                                    "name": file_path,
+                                    "path": file_path,
+                                    "language": _detect_language(file_path),
+                                    "modificationCount": 0,
+                                    "readCount": 0,
+                                }
+                            if tc["tool_name"] in _WRITE_TOOLS:
+                                seen_files[file_path]["modificationCount"] += 1
+                                rel_type = "MODIFIED_FILE"
+                            else:
+                                seen_files[file_path]["readCount"] += 1
+                                rel_type = "READ_FILE"
+                            relationships.append({
+                                "type": rel_type,
+                                "source_name": tc_name,
+                                "source_label": "ToolCall",
+                                "target_name": file_path,
+                                "target_label": "File",
+                            })
+
+                    # Error entity
+                    if is_error:
+                        error_text = tc.get("error_content", summary)
+                        error_name = f"error-{_short_hash(f'{session_id}-{tc.get("tool_use_id", "")}')}"
+                        entities.setdefault("Error", []).append({
+                            "name": error_name,
+                            "message": _clean(error_text[:300]),
+                            "toolName": tc["tool_name"],
+                            "timestamp": tc["timestamp"],
+                        })
+                        relationships.append({
+                            "type": "ENCOUNTERED_ERROR",
+                            "source_name": tc_name,
+                            "source_label": "ToolCall",
+                            "target_name": error_name,
+                            "target_label": "Error",
                         })
 
                 # Session document for full-text search
                 doc_parts = [f"[{m['role']}] {m['content'][:300]}" for m in messages if m["content"]]
                 documents.append({
                     "title": f"Claude Code Session: {session_name}",
-                    "content": "\n\n".join(doc_parts)[:10000],
+                    "content": _clean("\n\n".join(doc_parts)[:10000]),
+                })
+
+                all_parsed_sessions.append({
+                    "session_id": session_id,
+                    "session_name": session_name,
+                    "messages": messages,
+                    "tool_calls": tool_calls,
                 })
 
         entities["File"] = list(seen_files.values())
+        entities["GitBranch"] = list(seen_branches.values())
+
+        # Decision extraction
+        self._extract_decisions(all_parsed_sessions, entities, relationships)
+
+        # Preference extraction
+        self._extract_preferences(all_parsed_sessions, entities, relationships)
 
         return {
             "entities": entities,
@@ -159,12 +356,189 @@ class ClaudeCodeConnector:
             "documents": documents,
         }
 
+    def _extract_decisions(
+        self,
+        parsed_sessions: list[dict],
+        entities: dict[str, list[dict]],
+        relationships: list[dict],
+    ) -> None:
+        """Extract decisions from user corrections and error-resolution cycles."""
+        for session in parsed_sessions:
+            session_id = session["session_id"]
+            session_name = session["session_name"]
+            messages = session["messages"]
+            tool_calls = session["tool_calls"]
+
+            # User corrections
+            for i, msg in enumerate(messages):
+                if msg["role"] != "user" or i == 0:
+                    continue
+                text = msg.get("content", "")
+                if not text or len(text) < 5:
+                    continue
+
+                if not any(p.search(text) for p in _CORRECTION_PATTERNS):
+                    continue
+
+                prev_assistant = None
+                for j in range(i - 1, -1, -1):
+                    if messages[j]["role"] == "assistant":
+                        prev_assistant = messages[j]
+                        break
+                if not prev_assistant:
+                    continue
+
+                decision_id = _short_hash(f"{session_id}-correction-{i}")
+                decision_name = f"decision-{decision_id}"
+                entities.setdefault("Decision", []).append({
+                    "name": decision_name,
+                    "description": _clean(f"User correction: {text[:120]}"),
+                    "timestamp": msg["timestamp"],
+                    "outcome": "REVISED",
+                    "confidence": 0.75,
+                    "category": "correction",
+                    "sessionId": session_id,
+                })
+
+                orig_text = prev_assistant.get("content", "")[:200]
+                orig_alt_name = f"alt-{decision_id}-original"
+                entities.setdefault("Alternative", []).append({
+                    "name": orig_alt_name,
+                    "description": _clean(orig_text) if orig_text else "Original approach",
+                    "wasChosen": False,
+                })
+
+                corr_alt_name = f"alt-{decision_id}-correction"
+                entities.setdefault("Alternative", []).append({
+                    "name": corr_alt_name,
+                    "description": _clean(text[:200]),
+                    "wasChosen": True,
+                })
+
+                relationships.extend([
+                    {"type": "MADE_DECISION", "source_name": session_name,
+                     "source_label": "Session", "target_name": decision_name,
+                     "target_label": "Decision"},
+                    {"type": "REJECTED", "source_name": decision_name,
+                     "source_label": "Decision", "target_name": orig_alt_name,
+                     "target_label": "Alternative"},
+                    {"type": "CHOSE", "source_name": decision_name,
+                     "source_label": "Decision", "target_name": corr_alt_name,
+                     "target_label": "Alternative"},
+                ])
+
+            # Error-resolution cycles
+            error_tcs = [tc for tc in tool_calls if tc.get("is_error")]
+            for err_tc in error_tcs:
+                err_idx = tool_calls.index(err_tc)
+                resolution = None
+                for k in range(err_idx + 1, min(err_idx + 5, len(tool_calls))):
+                    if not tool_calls[k].get("is_error"):
+                        resolution = tool_calls[k]
+                        break
+                if not resolution:
+                    continue
+
+                decision_id = _short_hash(
+                    f"{session_id}-errfix-{err_tc.get('tool_use_id', '')}"
+                )
+                decision_name = f"decision-{decision_id}"
+                err_summary = self._summarize_input(
+                    err_tc["tool_name"], err_tc.get("input", {})
+                )
+                res_summary = self._summarize_input(
+                    resolution["tool_name"], resolution.get("input", {})
+                )
+
+                entities.setdefault("Decision", []).append({
+                    "name": decision_name,
+                    "description": _clean(f"Fix error in {err_tc['tool_name']}: {err_summary[:80]}"),
+                    "timestamp": resolution["timestamp"],
+                    "outcome": "RESOLVED",
+                    "confidence": 0.65,
+                    "category": "error_resolution",
+                    "sessionId": session_id,
+                })
+
+                relationships.append({
+                    "type": "MADE_DECISION", "source_name": session_name,
+                    "source_label": "Session", "target_name": decision_name,
+                    "target_label": "Decision",
+                })
+
+    def _extract_preferences(
+        self,
+        parsed_sessions: list[dict],
+        entities: dict[str, list[dict]],
+        relationships: list[dict],
+    ) -> None:
+        """Extract developer preferences from explicit statements."""
+        seen_prefs: dict[str, dict] = {}
+
+        for session in parsed_sessions:
+            session_id = session["session_id"]
+            for msg in session["messages"]:
+                if msg["role"] != "user":
+                    continue
+                text = msg.get("content", "")
+                if not text:
+                    continue
+
+                for pattern, category in _PREFERENCE_PATTERNS:
+                    match = pattern.search(text)
+                    if not match:
+                        continue
+
+                    pref_value = match.group(0).strip()[:100]
+                    pref_key = re.sub(r"\s+", " ", pref_value.lower())
+
+                    if pref_key in seen_prefs:
+                        seen_prefs[pref_key]["session_count"] += 1
+                        seen_prefs[pref_key]["confidence"] = min(
+                            seen_prefs[pref_key]["confidence"] + 0.15, 0.95
+                        )
+                    else:
+                        seen_prefs[pref_key] = {
+                            "name": f"pref-{_short_hash(pref_key)}",
+                            "category": category,
+                            "key": pref_key,
+                            "value": pref_value,
+                            "confidence": 0.6,
+                            "extractedFrom": "explicit_statement",
+                            "firstSeenAt": msg.get("timestamp", ""),
+                            "session_count": 1,
+                            "source_msg": f"msg-{msg['uuid'][:12]}",
+                        }
+
+        for pref in seen_prefs.values():
+            if pref["confidence"] < 0.4:
+                continue
+            entities.setdefault("Preference", []).append({
+                "name": pref["name"],
+                "category": pref["category"],
+                "key": pref["key"],
+                "value": pref["value"],
+                "confidence": round(pref["confidence"], 2),
+                "extractedFrom": pref["extractedFrom"],
+                "firstSeenAt": pref["firstSeenAt"],
+                "sessionCount": pref["session_count"],
+            })
+            if pref.get("source_msg"):
+                relationships.append({
+                    "type": "EXPRESSES_PREFERENCE",
+                    "source_name": pref["source_msg"],
+                    "source_label": "Message",
+                    "target_name": pref["name"],
+                    "target_label": "Preference",
+                })
+
     def _parse_session(self, jsonl_path: Path) -> tuple[list[dict], list[dict], dict]:
         """Parse a JSONL session file into messages, tool calls, and metadata."""
         messages: list[dict] = []
         tool_calls: list[dict] = []
         tool_results: dict[str, dict] = {}
         meta: dict[str, str] = {}
+        current_msg_name: str = ""
 
         try:
             with open(jsonl_path, encoding="utf-8") as f:
@@ -193,25 +567,24 @@ class ClaudeCodeConnector:
                     msg = entry.get("message", {})
                     text = self._extract_text(msg)
 
-                    # Content truncation
                     stored = text
                     if self._content_mode == "none":
                         stored = ""
                     elif self._content_mode == "truncated" and len(text) > self._max_content_len:
                         stored = text[:self._max_content_len] + "..."
 
+                    uuid = entry.get("uuid", "")
+                    current_msg_name = f"msg-{uuid[:12]}" if uuid else ""
                     messages.append({
-                        "uuid": entry.get("uuid", ""),
+                        "uuid": uuid,
                         "role": msg.get("role", ""),
                         "content": stored,
                         "timestamp": timestamp,
                     })
 
-                    # First user prompt
                     if entry_type == "user" and not meta.get("first_prompt") and len(text) > 5:
                         meta["first_prompt"] = text[:200]
 
-                    # Extract tool_use / tool_result blocks
                     content_blocks = msg.get("content", [])
                     if isinstance(content_blocks, list):
                         for block in content_blocks:
@@ -224,19 +597,33 @@ class ClaudeCodeConnector:
                                     "input": block.get("input", {}),
                                     "is_error": False,
                                     "timestamp": timestamp,
+                                    "parent_msg_name": current_msg_name,
+                                    "error_content": "",
                                 })
                             elif block.get("type") == "tool_result":
                                 is_err = block.get("is_error", False)
-                                tool_results[block.get("tool_use_id", "")] = {"is_error": is_err}
+                                content = ""
+                                if isinstance(block.get("content"), str):
+                                    content = block["content"][:300]
+                                elif isinstance(block.get("content"), list):
+                                    for cb in block["content"]:
+                                        if isinstance(cb, dict) and cb.get("type") == "text":
+                                            content = cb.get("text", "")[:300]
+                                            break
+                                tool_results[block.get("tool_use_id", "")] = {
+                                    "is_error": is_err,
+                                    "content": content,
+                                }
 
         except OSError as exc:
             logger.warning("Could not read %s: %s", jsonl_path, exc)
 
-        # Match results to tool calls
         for tc in tool_calls:
             tr = tool_results.get(tc["tool_use_id"])
             if tr:
                 tc["is_error"] = tr.get("is_error", False)
+                if tr.get("is_error"):
+                    tc["error_content"] = tr.get("content", "")
 
         return messages, tool_calls, meta
 

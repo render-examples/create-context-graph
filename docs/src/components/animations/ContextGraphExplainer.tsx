@@ -131,12 +131,12 @@ export function ContextGraphExplainer() {
     [0, 1, 1]
   );
 
-  // Text label opacities
+  // Text label opacities — tightened transitions to avoid overlap
   const textOpacities = [
-    useTransform(scrollYProgress, [0, 0.08, 0.22, 0.28], [0, 1, 1, 0]),
-    useTransform(scrollYProgress, [0.22, 0.3, 0.47, 0.53], [0, 1, 1, 0]),
-    useTransform(scrollYProgress, [0.47, 0.55, 0.72, 0.78], [0, 1, 1, 0]),
-    useTransform(scrollYProgress, [0.72, 0.82, 1, 1], [0, 1, 1, 1]),
+    useTransform(scrollYProgress, [0, 0.08, 0.2, 0.24], [0, 1, 1, 0]),
+    useTransform(scrollYProgress, [0.26, 0.32, 0.45, 0.49], [0, 1, 1, 0]),
+    useTransform(scrollYProgress, [0.51, 0.57, 0.7, 0.74], [0, 1, 1, 0]),
+    useTransform(scrollYProgress, [0.76, 0.82, 1, 1], [0, 1, 1, 1]),
   ];
 
   // Reduced motion: show everything statically
