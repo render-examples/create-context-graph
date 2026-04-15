@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.9.1 — Claude Code Connector Fixes & Docs (2026-04-15)
+
+### Bug Fixes
+- **Fix `make import` crash** — The scaffolded Claude Code connector crashed with `int(None)` when `max_sessions` was passed as `None` from `import_data.py`. All credential reads now use the `or` idiom for None-safety.
+- **Fix missing Settings fields** — Added `claude_code_scope`, `claude_code_since`, `claude_code_max_sessions`, `claude_code_content_mode`, `claude_code_base_path` to the generated `config.py` Settings class so `.env` variables are honored (previously silently dropped by `extra: "ignore"`). Also added `google_client_id`, `google_client_secret`, `gws_folder_id` for the Google Workspace connector.
+- **Fix dict vs attribute access** — All template connectors return `dict` from `fetch()`, but `import_data.py` used attribute access (`data.entities`). Changed to `data["entities"]` across the board.
+- **Don't write empty `fixtures.json` on crash** — The import script now skips writing `fixtures.json` when no data was collected, instead of silently overwriting it with empty lists.
+- **Fix `make test-connection`** — Combined two sequential `asyncio.run()` calls into one, fixing the "Event loop is closed" error that made it print both "successful" and "failed".
+
+### Improvements
+- **Expanded scaffolded connector** (268 → 457 lines) — The template connector now extracts 9 entity types (added GitBranch, Error, Decision, Preference, Alternative) with 14 relationship types (added ON_BRANCH, ENCOUNTERED_ERROR, MADE_DECISION, CHOSE, REJECTED, NEXT, PRECEDED_BY, USED_TOOL, EXPRESSES_PREFERENCE). Includes secret redaction, language detection from file extensions, file path validation, and `[rerun: bN]` suffix stripping.
+- **Claude-Code-specific demo scenarios** — When `--connector claude-code` is active, the "Try these" prompts now show relevant questions ("What files have I modified?", "Show me decisions", "What are my coding preferences?") instead of generic software-engineering prompts about PRs and incidents.
+
+### Documentation
+- Fixed dark-mode announcement bar (was white on dark background)
+- Added explicit `@easyops-cn/docusaurus-search-local` plugin configuration
+- Marked `ANTHROPIC_API_KEY` as required for the chat agent in the Claude Code tutorial
+- Replaced "copy `.env.example` to `.env`" with "edit the generated `.env`" in the tutorial
+- Added CLI flag literals next to connector display names in the intro page
+- Added "Focus" column with one-line disambiguators to the domain catalog
+- Custom 404 page with links to Introduction, Quick Start, and "Report Broken Link"
+- "See all 22 domains →" link on the homepage carousel
+- Tighter scroll transitions for the memory-type explainer
+- Higher-contrast step numbers on the "How it works" section
+
+### Tests
+- 7 new tests (1060 total): Settings fields, dict access, entity types, redaction, scenario override
+
 ## v0.9.0 — Claude Code Connector, Google Workspace & Security (2026-04-02)
 
 ### New Connectors
