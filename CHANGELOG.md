@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.9.2 — Batch Seeding Performance (2026-04-15)
+
+### Bug Fixes
+- **Batch entity seeding with `UNWIND`** — `make seed` previously executed one MERGE query per entity. With large Claude Code imports (27k+ entities), this caused seeding to appear to hang. Entity, relationship, and document creation now use `UNWIND $batch` with batches of 500, reducing ~27,000 round-trips to ~55.
+- **Batch ingestion in `import_data.py`** — The `--ingest` path in generated import scripts also uses `UNWIND` batching.
+
 ## v0.9.1 — Claude Code Connector Fixes & Docs (2026-04-15)
 
 ### Bug Fixes
