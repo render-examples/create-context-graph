@@ -524,6 +524,35 @@ class TestProjectRenderer:
         config_py = (tmp_output / "backend" / "app" / "config.py").read_text()
         assert "session_strategy" in config_py
 
+    def test_claude_code_scenarios_override_generic(self, tmp_output):
+        """When claude-code connector is active, demo scenarios should be replaced."""
+        config = ProjectConfig(
+            project_name="cc-test",
+            domain="software-engineering",
+            framework="pydanticai",
+            saas_connectors=["claude-code"],
+        )
+        ontology = load_domain(config.domain)
+        renderer = ProjectRenderer(config, ontology)
+        ctx = renderer._context()
+
+        scenario_names = [s["name"] for s in ctx["demo_scenarios"]]
+        assert "Session Intelligence" in scenario_names
+        # Should NOT contain generic SE scenarios
+        prompts = [p for s in ctx["demo_scenarios"] for p in s["prompts"]]
+        assert not any("pull request" in p.lower() for p in prompts)
+
+    def test_no_scenario_override_without_connector(self, financial_config, tmp_output):
+        """Without claude-code connector, domain scenarios should be used as-is."""
+        ontology = load_domain(financial_config.domain)
+        renderer = ProjectRenderer(financial_config, ontology)
+        ctx = renderer._context()
+
+        # Should use the domain's own scenarios
+        assert len(ctx["demo_scenarios"]) > 0
+        scenario_names = [s["name"] for s in ctx["demo_scenarios"]]
+        assert "Session Intelligence" not in scenario_names
+
 
 class TestAllFrameworksRender:
     """Verify every agent framework template renders and compiles."""
