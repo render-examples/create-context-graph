@@ -180,6 +180,37 @@ _CLAUDE_CODE_AGENT_TOOLS: list[dict] = [
     },
 ]
 
+# ---------------------------------------------------------------------------
+# Claude Code session connector demo scenarios
+# ---------------------------------------------------------------------------
+
+_CLAUDE_CODE_SCENARIOS: list[dict] = [
+    {
+        "name": "Session Intelligence",
+        "prompts": [
+            "What files have I modified most frequently?",
+            "Show me the decisions made in my recent sessions",
+            "What errors have I encountered and how were they resolved?",
+        ],
+    },
+    {
+        "name": "Development Patterns",
+        "prompts": [
+            "What are my coding preferences?",
+            "Which tools do I use most frequently?",
+            "Give me an overview of my project activity",
+        ],
+    },
+    {
+        "name": "Code Archaeology",
+        "prompts": [
+            "What was I working on in my last session?",
+            "Show me the reasoning trace for my most recent session",
+            "Which files were involved in fixing the last error?",
+        ],
+    },
+]
+
 
 # ---------------------------------------------------------------------------
 # Renderer
@@ -222,7 +253,7 @@ class ProjectRenderer:
             "base_entity_types": base_entity_types,
             "domain_entity_types": domain_entity_types,
             "relationships": [r.model_dump() for r in self.ontology.relationships],
-            "demo_scenarios": [s.model_dump() for s in self.ontology.demo_scenarios],
+            "demo_scenarios": self._build_demo_scenarios(),
             "agent_tools": self._build_agent_tools(),
             "framework": self.config.resolved_framework,
             "framework_display_name": self.config.framework_display_name,
@@ -271,6 +302,12 @@ class ProjectRenderer:
                 "file modification history."
             )
         return prompt
+
+    def _build_demo_scenarios(self) -> list[dict]:
+        """Build demo scenarios, replacing with connector-specific ones if active."""
+        if "claude-code" in self.config.saas_connectors:
+            return _CLAUDE_CODE_SCENARIOS
+        return [s.model_dump() for s in self.ontology.demo_scenarios]
 
     def _build_agent_tools(self) -> list[dict]:
         """Build agent tools list, including connector-specific tools."""

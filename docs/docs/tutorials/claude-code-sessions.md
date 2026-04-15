@@ -57,7 +57,7 @@ Before you begin, make sure you have:
   - neo4j-local: `npx @johnymontana/neo4j-local`
 - **uv** (recommended) -- install with `curl -LsSf https://astral.sh/uv/install.sh | sh`
 - **Claude Code session history** -- at least one session in `~/.claude/projects/`
-- **An LLM API key** -- `ANTHROPIC_API_KEY` (for most frameworks) or `OPENAI_API_KEY` / `GOOGLE_API_KEY` depending on your framework choice
+- **An LLM API key** (required for the chat agent) -- `ANTHROPIC_API_KEY` (for most frameworks) or `OPENAI_API_KEY` / `GOOGLE_API_KEY` depending on your framework choice
 
 :::caution Python version errors
 If you see `requires-python >= 3.11` errors during installation, your active Python is too old. Common fixes:
@@ -158,21 +158,19 @@ Navigate to your project:
 cd my-dev-graph
 ```
 
-**Configure your environment** by copying the example file and editing it:
+**Configure your environment.** The scaffolded project generates a `.env` file with working Neo4j defaults. Edit it with your credentials:
 
 ```bash
-cp .env.example .env
-```
-
-Edit `.env` with your Neo4j connection details and API key:
-
-```bash
-# .env
+# .env (already generated — edit in place, don't overwrite)
 NEO4J_URI=neo4j://localhost:7687
 NEO4J_USERNAME=neo4j
-NEO4J_PASSWORD=password
-ANTHROPIC_API_KEY=sk-ant-...
+NEO4J_PASSWORD=password          # change to match your Neo4j instance
+ANTHROPIC_API_KEY=sk-ant-...     # required for the chat agent in Step 4
 ```
+
+:::warning API key required for chat
+The chat agent in Step 4 requires an `ANTHROPIC_API_KEY` (or `OPENAI_API_KEY` / `GOOGLE_API_KEY` depending on your framework). Without it, the graph visualization, document browser, and decision trace viewer will work, but the chat panel will return an error.
+:::
 
 :::tip Using Neo4j Aura?
 If you're using Neo4j Aura, set `NEO4J_URI=neo4j+s://xxxxxxxx.databases.neo4j.io` with the connection URI from your Aura console.
@@ -207,6 +205,16 @@ Loading fixture data...
   Created 4 decision traces
 Done. Knowledge graph ready.
 ```
+
+:::tip Verify the seed
+To confirm your data loaded correctly, you can query the Neo4j instance directly:
+
+```bash
+make test-connection
+```
+
+This should print "Neo4j connection successful". The exact entity counts depend on the number and size of your Claude Code sessions.
+:::
 
 ## Step 3: Start the Application (~1 min)
 
@@ -519,15 +527,29 @@ make import-and-seed
 
 The import uses MERGE operations, so re-importing is safe -- existing nodes are updated rather than duplicated.
 
-Use `--claude-code-since` to limit imports to recent sessions:
+:::tip Customizing re-imports via `.env`
+To change the import scope after scaffolding, edit the Claude Code settings in your `.env` file:
 
 ```bash
-uvx create-context-graph my-dev-graph \
-  --domain software-engineering \
-  --framework claude-agent-sdk \
-  --connector claude-code \
-  --claude-code-since 2026-04-01
+# Import all projects (not just current directory)
+CLAUDE_CODE_SCOPE=all
+
+# Limit to recent sessions
+CLAUDE_CODE_SINCE=2026-04-01
+
+# Import at most 50 sessions
+CLAUDE_CODE_MAX_SESSIONS=50
+
+# Store full message content (default: truncated to 2000 chars)
+CLAUDE_CODE_CONTENT_MODE=full
 ```
+
+These settings only affect `make import` / `make import-and-seed`. The initial scaffold import uses the CLI flags instead.
+:::
+
+:::note Session deduplication
+Because seed uses `MERGE` by name, re-seeding updates existing nodes rather than creating duplicates. However, sessions that were deleted from `~/.claude/projects/` will remain as stale nodes in Neo4j. To start fresh, run `make reset` before `make import-and-seed`.
+:::
 
 ## Troubleshooting
 

@@ -26,7 +26,7 @@ The **POLE+O** entity model is the foundation for all context graphs: **P**erson
 - **Interactive graph visualization** -- NVL-powered graph explorer with entity detail panel, document browser with template filtering, and decision trace viewer.
 - **Rich demo data** -- LLM-generated fixture data per domain: 80-90 entities, 25+ professional documents, and 3-5 multi-step decision traces. Loaded via `make seed`.
 - **Flexible Neo4j setup** -- Neo4j Aura (free cloud), `@johnymontana/neo4j-local`, Docker Compose, or any existing instance.
-- **12 SaaS data connectors** -- GitHub, Slack, Jira, Notion, Gmail, Google Calendar, Salesforce, Linear, Google Workspace, Claude Code, Claude AI, and ChatGPT.
+- **12 SaaS data connectors** -- GitHub (`github`), Slack (`slack`), Jira (`jira`), Notion (`notion`), Gmail (`gmail`), Google Calendar (`gcal`), Salesforce (`salesforce`), Linear (`linear`), Google Workspace (`google-workspace`), Claude Code (`claude-code`), Claude AI (`claude-ai`), and ChatGPT (`chatgpt`). Use the ID in parentheses with `--connector`.
 - **Custom domains** -- Describe your domain in natural language to generate a complete ontology, or write your own YAML definition.
 - **MCP server for Claude Desktop** -- Optionally generate an MCP server config so Claude Desktop queries the same knowledge graph as your web app.
 

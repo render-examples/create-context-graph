@@ -9,30 +9,30 @@ create-context-graph ships with **22 built-in domains**. Each domain includes a 
 
 ## All Domains
 
-| Domain | Name | Entity Types | Agent Tools |
-|--------|------|-------------|-------------|
-| `agent-memory` | 🧠 Agent Memory | 11 | 7 |
-| `conservation` | 🌿 Conservation | 11 | 8 |
-| `data-journalism` | 📰 Data Journalism | 11 | 8 |
-| `digital-twin` | 🏭 Digital Twin | 11 | 8 |
-| `financial-services` | 💰 Financial Services | 10 | 7 |
-| `gaming` | 🎮 Gaming | 11 | 9 |
-| `genai-llm-ops` | 🤖 GenAI & LLM Ops | 11 | 8 |
-| `gis-cartography` | 🗺 GIS & Cartography | 11 | 8 |
-| `golf-sports` | ⛳ Golf Sports | 11 | 8 |
-| `healthcare` | 🏥 Healthcare | 12 | 6 |
-| `hospitality` | 🏨 Hospitality | 11 | 8 |
-| `manufacturing` | 🏭 Manufacturing | 11 | 7 |
-| `oil-gas` | 🛢️ Oil & Gas | 10 | 6 |
-| `personal-knowledge` | 📝 Personal Knowledge | 10 | 8 |
-| `product-management` | 📋 Product Management | 12 | 7 |
-| `real-estate` | 🏠 Real Estate | 10 | 8 |
-| `retail-ecommerce` | 🛒 Retail & E-Commerce | 11 | 6 |
-| `scientific-research` | 🔬 Scientific Research | 11 | 6 |
-| `software-engineering` | 💻 Software Engineering | 11 | 7 |
-| `trip-planning` | 🌍 Trip Planning | 10 | 7 |
-| `vacation-industry` | 🏖 Vacation Industry | 10 | 6 |
-| `wildlife-management` | 🐻 Wildlife Management | 11 | 6 |
+| Domain | Name | Focus | Entity Types | Agent Tools |
+|--------|------|-------|-------------|-------------|
+| `agent-memory` | 🧠 Agent Memory | AI agent conversation and memory management | 11 | 7 |
+| `conservation` | 🌿 Conservation | Environmental conservation programs and endangered species | 11 | 8 |
+| `data-journalism` | 📰 Data Journalism | Investigative reporting, sources, and story threads | 11 | 8 |
+| `digital-twin` | 🏭 Digital Twin | IoT sensor networks and industrial simulation | 11 | 8 |
+| `financial-services` | 💰 Financial Services | Banking, accounts, transactions, and compliance | 10 | 7 |
+| `gaming` | 🎮 Gaming | Game worlds, players, quests, and item economies | 11 | 9 |
+| `genai-llm-ops` | 🤖 GenAI & LLM Ops | LLM deployment, prompts, evaluations, and model versioning | 11 | 8 |
+| `gis-cartography` | 🗺 GIS & Cartography | Geospatial features, map layers, and spatial analysis | 11 | 8 |
+| `golf-sports` | ⛳ Golf Sports | Golf courses, tournaments, player stats, and handicaps | 11 | 8 |
+| `healthcare` | 🏥 Healthcare | Patients, providers, diagnoses, and treatment plans | 12 | 6 |
+| `hospitality` | 🏨 Hospitality | Hotel operations, guest management, and room inventory | 11 | 8 |
+| `manufacturing` | 🏭 Manufacturing | Production lines, quality control, and supply chain | 11 | 7 |
+| `oil-gas` | 🛢️ Oil & Gas | Wells, pipelines, production sites, and inspections | 10 | 6 |
+| `personal-knowledge` | 📝 Personal Knowledge | Personal notes, contacts, projects, and learning | 10 | 8 |
+| `product-management` | 📋 Product Management | Features, roadmaps, user feedback, and sprint planning | 12 | 7 |
+| `real-estate` | 🏠 Real Estate | Properties, listings, agents, and transactions | 10 | 8 |
+| `retail-ecommerce` | 🛒 Retail & E-Commerce | Products, orders, customers, and inventory | 11 | 6 |
+| `scientific-research` | 🔬 Scientific Research | Papers, experiments, datasets, and citations | 11 | 6 |
+| `software-engineering` | 💻 Software Engineering | Repositories, PRs, incidents, deployments, and services | 11 | 7 |
+| `trip-planning` | 🌍 Trip Planning | Itinerary assembly, destinations, and travel logistics | 10 | 7 |
+| `vacation-industry` | 🏖 Vacation Industry | Tour operators, packages, OTA supply chain, and bookings | 10 | 6 |
+| `wildlife-management` | 🐻 Wildlife Management | Animal tracking, habitats, populations, and rangers | 11 | 6 |
 
 ## Domain Details
 

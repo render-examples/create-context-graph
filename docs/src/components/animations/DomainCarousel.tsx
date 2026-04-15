@@ -86,6 +86,9 @@ export function DomainCarousel() {
         <div className={styles.trackFade} />
       </div>
       <div className={styles.dragHint}>Drag to explore &middot; Hover to flip</div>
+      <a href="/docs/reference/domain-catalog" className={styles.catalogLink}>
+        See all 22 domains &rarr;
+      </a>
     </section>
   );
 }

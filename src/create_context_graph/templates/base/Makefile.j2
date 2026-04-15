@@ -48,7 +48,7 @@ reset:
 
 # Test Neo4j connection
 test-connection:
-	@cd backend && uv run python -c "import asyncio; from app.context_graph_client import connect_neo4j, close_neo4j; asyncio.run(connect_neo4j()); print('Neo4j connection successful'); asyncio.run(close_neo4j())" \
+	@cd backend && uv run python -c "import asyncio; from app.context_graph_client import connect_neo4j; asyncio.run(connect_neo4j()); print('Neo4j connection successful')" \
 		|| echo "Connection failed. Check NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD in .env"
 
 {% if neo4j_type == 'docker' %}
