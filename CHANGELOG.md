@@ -1,5 +1,7 @@
 # Changelog
 
+## v0.9.3 — GitHub Actions release workflow bugfixes (2026-04-17)
+
 ## v0.9.2 — Batch Seeding Performance (2026-04-15)
 
 ### Bug Fixes

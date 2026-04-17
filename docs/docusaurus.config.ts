@@ -103,7 +103,7 @@ const config: Config = {
     },
     announcementBar: {
       id: 'version_banner',
-      content: '📦 You are viewing docs for <b>create-context-graph v0.9.2</b>',
+      content: '📦 You are viewing docs for <b>create-context-graph v0.9.3</b>',
       isCloseable: true,
     },
     footer: {

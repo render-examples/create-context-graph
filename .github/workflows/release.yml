@@ -124,9 +124,6 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Node deps
-        run: npm ci --prefix npm-wrapper
-
       - name: Build Node package
         run: npm run build --if-present --prefix npm-wrapper
 
