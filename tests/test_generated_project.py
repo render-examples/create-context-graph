@@ -458,6 +458,13 @@ class TestGeneratedTestScaffold:
         content = (out / "backend" / "tests" / "test_routes.py").read_text()
         assert "financial-services" in content
 
+    def test_test_file_mocks_is_connected(self, generated_project):
+        out, _ = generated_project
+        content = (out / "backend" / "tests" / "test_routes.py").read_text()
+        assert "is_connected" in content, (
+            "mock_neo4j fixture must mock is_connected so test_health returns 'ok'"
+        )
+
 
 class TestGeneratedBackendPyproject:
     """Backend pyproject.toml must have correct structure."""
