@@ -518,7 +518,7 @@ export function ContextGraphView({ externalGraphData, onAskAbout }: ContextGraph
                   </Badge>
                 ))}
               </HStack>
-              {onAskAbout && (selectedElement.data as GraphNode).properties.name && (
+              {onAskAbout && !!(selectedElement.data as GraphNode).properties.name && (
                 <Button
                   size="xs"
                   colorPalette="blue"
