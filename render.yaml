@@ -1,0 +1,73 @@
+services:
+  # Neo4j — Docker private service (no native Render runtime for Neo4j)
+  - type: pserv
+    name: ccg-demo-neo4j
+    runtime: docker
+    dockerfilePath: ./Dockerfile.neo4j
+    plan: starter
+    disk:
+      name: neo4j-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: NEO4J_AUTH
+        sync: false  # Set to: neo4j/YOURPASSWORD
+      - key: NEO4J_PLUGINS
+        value: '["apoc", "graph-data-science"]'
+
+  # FastAPI backend — native Python runtime
+  - type: web
+    name: ccg-demo-backend
+    runtime: python
+    rootDir: demo/backend
+    plan: free
+    buildCommand: pip install uv && uv sync --no-dev && uv run python -m spacy download en_core_web_sm
+    startCommand: uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: NEO4J_URI
+        value: bolt://ccg-demo-neo4j:7687
+      - key: NEO4J_USERNAME
+        value: neo4j
+      - key: NEO4J_PASSWORD
+        sync: false  # Must match the password part of NEO4J_AUTH above
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        value: https://ccg-demo-frontend.onrender.com
+
+  # Next.js frontend — native Node runtime
+  - type: web
+    name: ccg-demo-frontend
+    runtime: node
+    rootDir: demo/frontend
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 22.0.0
+      - key: NEXT_PUBLIC_API_URL
+        value: https://ccg-demo-backend.onrender.com/api
+
+  # One-time seed job — trigger manually from Dashboard after services are live
+  - type: cron
+    name: ccg-demo-seed
+    runtime: python
+    rootDir: demo/backend
+    plan: starter
+    schedule: "0 0 1 1 *"  # Far-future — use Manual Run in Dashboard
+    buildCommand: pip install uv && uv sync --no-dev
+    startCommand: uv run python scripts/generate_data.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: NEO4J_URI
+        value: bolt://ccg-demo-neo4j:7687
+      - key: NEO4J_USERNAME
+        value: neo4j
+      - key: NEO4J_PASSWORD
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
