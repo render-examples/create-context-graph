@@ -1,3 +1,6 @@
+projects:
+  - name: neo4j-context-graph
+
 services:
   # Neo4j — Docker private service (no native Render runtime for Neo4j)
   - type: pserv
